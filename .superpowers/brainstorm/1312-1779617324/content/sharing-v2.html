@@ -1,0 +1,174 @@
+<h2>数据共享机制 V2</h2>
+<p class="subtitle">开模块时设共享范围，家庭清单自己管，不在清单内看不到</p>
+
+<!-- 第一步：家庭清单 -->
+<div class="mockup" style="margin-bottom:16px;">
+  <div class="mockup-header">👨‍👩‍👧‍👦 第一步：管理家庭清单</div>
+  <div class="mockup-body" style="padding:16px;">
+    <div style="font-size:13px;color:#666;margin-bottom:12px;">每个人维护自己的家庭清单，只有清单内的人能看到你的共享数据</div>
+
+    <div style="background:#fafafa;border-radius:10px;padding:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-weight:bold;">👩 妈妈的家庭清单</span>
+        <span style="font-size:12px;color:#1565c0;">+ 添加成员</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:8px;padding:10px;">
+          <div style="width:36px;height:36px;background:#1565c0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;">👨</div>
+          <div style="flex:1;">
+            <div style="font-weight:bold;font-size:13px;">爸爸</div>
+            <div style="font-size:11px;color:#999;">138****5678</div>
+          </div>
+          <div style="font-size:11px;color:#4caf50;">已加入</div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:8px;padding:10px;">
+          <div style="width:36px;height:36px;background:#e65100;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;">👧</div>
+          <div style="flex:1;">
+            <div style="font-weight:bold;font-size:13px;">宝贝</div>
+            <div style="font-size:11px;color:#999;">无手机（代管账号）</div>
+          </div>
+          <div style="font-size:11px;color:#4caf50;">已加入</div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:8px;padding:10px;">
+          <div style="width:36px;height:36px;background:#c62828;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;">👵</div>
+          <div style="flex:1;">
+            <div style="font-weight:bold;font-size:13px;">奶奶</div>
+            <div style="font-size:11px;color:#999;">139****1234</div>
+          </div>
+          <div style="font-size:11px;color:#ff9800;">待确认</div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;padding:8px;background:#fff3e0;border-radius:6px;font-size:11px;color:#e65100;">
+        💡 邀请奶奶加入 → 奶奶接受后，双方才能看到彼此共享的数据
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 第二步：开启模块时设共享 -->
+<div class="mockup" style="margin-bottom:16px;">
+  <div class="mockup-header">🔐 第二步：开启模块时选择共享范围</div>
+  <div class="mockup-body" style="padding:16px;">
+    <div style="font-size:13px;color:#666;margin-bottom:12px;">开启模块的那一刻就决定：我创建的数据谁可见</div>
+
+    <!-- 妈妈开启姨妈周期 -->
+    <div style="background:#fce4ec;border-radius:12px;padding:14px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:20px;">🌸</span>
+        <span style="font-weight:bold;">姨妈周期</span>
+      </div>
+      <div style="font-size:12px;color:#666;margin-bottom:8px;">我创建的周期数据，谁可以看到？</div>
+      <div style="display:flex;gap:8px;">
+        <div style="background:#c62828;color:#fff;border-radius:16px;padding:6px 14px;font-size:12px;border:2px solid #c62828;">👁 仅自己</div>
+        <div style="background:#fff;color:#999;border-radius:16px;padding:6px 14px;font-size:12px;border:1px solid #ddd;">👨‍👩‍👧‍👦 共享</div>
+      </div>
+      <div style="font-size:11px;color:#ad1457;margin-top:6px;">🔒 此模块仅支持「仅自己」，保护隐私</div>
+    </div>
+
+    <!-- 妈妈开启健康用药 -->
+    <div style="background:#e8f5e9;border-radius:12px;padding:14px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:20px;">💊</span>
+        <span style="font-weight:bold;">健康用药</span>
+      </div>
+      <div style="font-size:12px;color:#666;margin-bottom:8px;">我创建的用药数据，谁可以看到？</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div style="background:#fff;color:#999;border-radius:16px;padding:6px 14px;font-size:12px;border:1px solid #ddd;">👁 仅自己</div>
+        <div style="background:#1565c0;color:#fff;border-radius:16px;padding:6px 14px;font-size:12px;border:2px solid #1565c0;">👨‍👩‍👧‍👦 家庭清单内可见</div>
+      </div>
+      <div style="font-size:11px;color:#2e7d32;margin-top:6px;">✅ 家庭清单里的爸爸、宝贝、奶奶都能看到你添加的用药提醒</div>
+    </div>
+
+    <!-- 妈妈开启孩子事项 -->
+    <div style="background:#e3f2fd;border-radius:12px;padding:14px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:20px;">📚</span>
+        <span style="font-weight:bold;">孩子事项</span>
+      </div>
+      <div style="font-size:12px;color:#666;margin-bottom:8px;">我创建的孩子事项，谁可以看到？</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div style="background:#fff;color:#999;border-radius:16px;padding:6px 14px;font-size:12px;border:1px solid #ddd;">👁 仅自己</div>
+        <div style="background:#fff;color:#999;border-radius:16px;padding:6px 14px;font-size:12px;border:1px solid #ddd;">👨‍👩‍👧‍👦 家庭清单内可见</div>
+        <div style="background:#1565c0;color:#fff;border-radius:16px;padding:6px 14px;font-size:12px;border:2px solid #1565c0;">👨‍👩 仅父母可见</div>
+      </div>
+      <div style="font-size:11px;color:#1565c0;margin-top:6px;">✅ 只有你和爸爸能看到，宝贝和奶奶看不到</div>
+    </div>
+
+    <!-- 妈妈开启提醒事项 -->
+    <div style="background:#fff3e0;border-radius:12px;padding:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:20px;">🔔</span>
+        <span style="font-weight:bold;">提醒事项</span>
+      </div>
+      <div style="font-size:12px;color:#666;margin-bottom:8px;">我创建的提醒，谁可以看到？</div>
+      <div style="font-size:12px;color:#666;margin-bottom:8px;">逐条选择（每次添加时单独决定）</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <div style="background:#e65100;color:#fff;border-radius:16px;padding:6px 14px;font-size:12px;border:2px solid #e65100;">📝 每条单独选</div>
+      </div>
+      <div style="font-size:11px;color:#e65100;margin-top:6px;">添加每条提醒时再选：仅自己 / 指定成员 / 全家</div>
+    </div>
+  </div>
+</div>
+
+<!-- 完整流转 -->
+<div class="mockup" style="margin-bottom:16px;">
+  <div class="mockup-header">🔄 数据共享完整流转</div>
+  <div class="mockup-body" style="padding:16px;">
+    <div style="display:flex;flex-direction:column;gap:0;">
+
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;">
+        <div style="width:32px;height:32px;background:#1565c0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex-shrink:0;">1</div>
+        <div><strong>妈妈添加奶奶降压药提醒</strong><br><span style="font-size:12px;color:#666;">健康用药模块 → 共享范围已是「家庭清单内可见」</span></div>
+      </div>
+
+      <div style="border-left:2px solid #ddd;margin-left:15px;height:16px;"></div>
+
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;">
+        <div style="width:32px;height:32px;background:#1565c0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex-shrink:0;">2</div>
+        <div><strong>数据写入云端</strong><br><span style="font-size:12px;color:#666;">标记 visibility=FAMILY，创建者=妈妈</span></div>
+      </div>
+
+      <div style="border-left:2px solid #ddd;margin-left:15px;height:16px;"></div>
+
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;">
+        <div style="width:32px;height:32px;background:#1565c0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex-shrink:0;">3</div>
+        <div><strong>服务端查询：谁在妈妈的家庭清单内？</strong><br><span style="font-size:12px;color:#666;">爸爸✓、宝贝✓、奶奶✓（已确认加入）</span></div>
+      </div>
+
+      <div style="border-left:2px solid #ddd;margin-left:15px;height:16px;"></div>
+
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;">
+        <div style="width:32px;height:32px;background:#4caf50;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex-shrink:0;">4</div>
+        <div><strong>奶奶手机收到推送提醒</strong><br><span style="font-size:12px;color:#666;">「该吃降压药了」— 大字体+声音提醒</span></div>
+      </div>
+
+      <div style="border-left:2px solid #ddd;margin-left:15px;height:16px;"></div>
+
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;">
+        <div style="width:32px;height:32px;background:#4caf50;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex-shrink:0;">5</div>
+        <div><strong>奶奶点「已服药」→ 全家同步看到✓</strong><br><span style="font-size:12px;color:#666;">妈妈、爸爸首页自动更新状态</span></div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:10px;padding:10px;background:#ffebee;border-radius:8px;font-size:12px;color:#c62828;">
+      <strong>反向：</strong>妈妈姨妈周期 → 模块设为「仅自己」→ 服务端查询时直接跳过 → <strong>任何人（包括爸爸）都看不到</strong>
+    </div>
+  </div>
+</div>
+
+<!-- 核心规则 -->
+<div style="padding:16px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:12px;color:#fff;">
+  <h3 style="color:#fff;margin:0 0 8px;">核心规则总结</h3>
+  <ul style="margin:0;padding-left:20px;font-size:13px;opacity:0.95;line-height:1.8;">
+    <li><strong>控制权 = 创建者</strong>：我开启模块时选共享范围，我创建的数据按此规则共享</li>
+    <li><strong>家庭清单 = 双向确认</strong>：我加你，你接受，双方才能看到彼此的共享数据</li>
+    <li><strong>不在清单 = 完全隔离</strong>：不在家庭清单里的人，连「全家可见」的数据都看不到</li>
+    <li><strong>逐条可覆盖</strong>：模块有默认共享范围，但每条数据可单独调整（提醒事项、备忘等）</li>
+    <li><strong>强制隐私</strong>：姨妈周期等模块只能「仅自己」，不可改为共享</li>
+  </ul>
+</div>

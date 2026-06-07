@@ -1,0 +1,12 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "卡宝Home - 家庭管理助手" },
+    { "name": "EntryAbility_desc", "value": "卡宝Home主界面" },
+    { "name": "EntryAbility_label", "value": "卡宝Home" },
+    { "name": "permission_internet", "value": "用于数据同步和云端备份" },
+
+    { "name": "permission_location", "value": "用于家庭成员位置共享功能" },
+    { "name": "permission_reminder", "value": "用于发送定时用药和家庭事项提醒" },
+    { "name": "permission_camera", "value": "用于扫描二维码加入家庭" }
+  ]
+}

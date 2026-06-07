@@ -1,0 +1,189 @@
+<h2>核心功能模块设计</h2>
+<p class="subtitle">3个第一版核心模块 + 1个延后模块的详细界面</p>
+
+<!-- 姨妈周期模块 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header">🌸 姨妈周期追踪</div>
+  <div class="mockup-body" style="padding:16px;">
+    <!-- 周期日历 -->
+    <div style="background:#fafafa;border-radius:12px;padding:16px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-size:14px;">◀</span>
+        <span style="font-weight:bold;">2026年5月</span>
+        <span style="font-size:14px;">▶</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:12px;gap:4px;margin-bottom:8px;">
+        <div style="color:#999;">日</div><div style="color:#999;">一</div><div style="color:#999;">二</div><div style="color:#999;">三</div><div style="color:#999;">四</div><div style="color:#999;">五</div><div style="color:#999;">六</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:13px;gap:4px;">
+        <div></div><div></div><div></div><div></div><div></div>
+        <div>1</div><div>2</div>
+        <div>3</div><div>4</div>
+        <div style="background:#e91e63;color:#fff;border-radius:50%;width:28px;height:28px;line-height:28px;margin:0 auto;">5</div>
+        <div style="background:#e91e63;color:#fff;border-radius:50%;width:28px;height:28px;line-height:28px;margin:0 auto;">6</div>
+        <div style="background:#f48fb1;color:#fff;border-radius:50%;width:28px;height:28px;line-height:28px;margin:0 auto;">7</div>
+        <div style="background:#f48fb1;color:#fff;border-radius:50%;width:28px;height:28px;line-height:28px;margin:0 auto;">8</div>
+        <div>9</div>
+        <div>10</div><div>11</div><div>12</div><div>13</div><div>14</div><div>15</div><div>16</div>
+        <div>17</div><div>18</div><div>19</div>
+        <div style="background:#fff9c4;border-radius:50%;width:28px;height:28px;line-height:28px;margin:0 auto;">20</div>
+        <div style="background:#fff9c4;border-radius:50%;width:28px;height:28px;line-height:28px;margin:0 auto;">21</div>
+        <div style="background:#fff9c4;border-radius:50%;width:28px;height:28px;line-height:28px;margin:0 auto;">22</div>
+        <div style="background:#fff9c4;border-radius:50%;width:28px;height:28px;line-height:28px;margin:0 auto;">23</div>
+        <div>24</div><div>25</div><div>26</div><div>27</div><div>28</div><div>29</div><div>30</div>
+        <div>31</div>
+      </div>
+    </div>
+
+    <!-- 图例 -->
+    <div style="display:flex;gap:16px;font-size:12px;margin-bottom:12px;justify-content:center;">
+      <div style="display:flex;align-items:center;gap:4px;"><div style="width:12px;height:12px;background:#e91e63;border-radius:50%;"></div>经期</div>
+      <div style="display:flex;align-items:center;gap:4px;"><div style="width:12px;height:12px;background:#f48fb1;border-radius:50%;"></div>末尾</div>
+      <div style="display:flex;align-items:center;gap:4px;"><div style="width:12px;height:12px;background:#fff9c4;border-radius:50%;"></div>排卵期</div>
+      <div style="display:flex;align-items:center;gap:4px;"><div style="width:12px;height:12px;background:#c8e6c9;border-radius:50%;"></div>安全期</div>
+    </div>
+
+    <!-- 状态卡片 -->
+    <div style="background:linear-gradient(135deg,#fce4ec,#f8bbd0);border-radius:12px;padding:16px;margin-bottom:12px;">
+      <div style="font-size:24px;font-weight:bold;color:#880e4f;">第12天</div>
+      <div style="font-size:13px;color:#ad1457;margin-top:4px;">排卵期中 · 预计7天后下次经期</div>
+      <div style="margin-top:8px;display:flex;gap:8px;">
+        <div style="background:rgba(255,255,255,0.6);border-radius:8px;padding:6px 12px;font-size:12px;">周期: 28天</div>
+        <div style="background:rgba(255,255,255,0.6);border-radius:8px;padding:6px 12px;font-size:12px;">持续: 5天</div>
+      </div>
+    </div>
+
+    <!-- 快捷记录 -->
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button style="background:#e91e63;color:#fff;border:none;border-radius:20px;padding:10px 20px;font-size:14px;">📝 记录今天来了</button>
+      <button style="background:#fff;color:#e91e63;border:1px solid #e91e63;border-radius:20px;padding:10px 20px;font-size:14px;">😊 记录症状</button>
+    </div>
+  </div>
+</div>
+
+<!-- 健康用药模块 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header">💊 健康与用药提醒</div>
+  <div class="mockup-body" style="padding:16px;">
+    <!-- 成员选择 -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;">
+      <div style="background:#c62828;color:#fff;border-radius:20px;padding:6px 14px;font-size:13px;white-space:nowrap;">👵 奶奶</div>
+      <div style="background:#f5f5f5;color:#333;border-radius:20px;padding:6px 14px;font-size:13px;white-space:nowrap;">👩 妈妈</div>
+      <div style="background:#f5f5f5;color:#333;border-radius:20px;padding:6px 14px;font-size:13px;white-space:nowrap;">👨 爸爸</div>
+      <div style="background:#f5f5f5;color:#333;border-radius:20px;padding:6px 14px;font-size:13px;white-space:nowrap;">+ 添加</div>
+    </div>
+
+    <!-- 今日用药 -->
+    <div style="font-weight:bold;margin-bottom:8px;">今日用药</div>
+    <div style="border-left:3px solid #4caf50;padding:10px 12px;background:#f1f8e9;border-radius:0 8px 8px 0;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:bold;">降压药 · 氨氯地平</div>
+          <div style="font-size:12px;color:#666;">1片 · 早餐后</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:12px;color:#666;">9:00</div>
+          <div style="background:#4caf50;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;">✓ 已服</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-left:3px solid #ff9800;padding:10px 12px;background:#fff8e1;border-radius:0 8px 8px 0;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:bold;">钙片 · 碳酸钙D3</div>
+          <div style="font-size:12px;color:#666;">2片 · 午餐后</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:12px;color:#666;">12:00</div>
+          <div style="background:#ff9800;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;">待服</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-left:3px solid #ccc;padding:10px 12px;background:#fafafa;border-radius:0 8px 8px 0;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:bold;color:#999;">降糖药 · 二甲双胍</div>
+          <div style="font-size:12px;color:#999;">1片 · 晚餐后</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:12px;color:#999;">18:00</div>
+          <div style="background:#eee;color:#999;border-radius:4px;padding:2px 8px;font-size:11px;">未到</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 添加按钮 -->
+    <div style="text-align:center;">
+      <button style="background:#1565c0;color:#fff;border:none;border-radius:20px;padding:10px 24px;font-size:14px;">+ 添加用药提醒</button>
+    </div>
+  </div>
+</div>
+
+<!-- 孩子事项模块 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header">📚 孩子事项管理</div>
+  <div class="mockup-body" style="padding:16px;">
+    <!-- 时间筛选 -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <div style="background:#1565c0;color:#fff;border-radius:16px;padding:4px 12px;font-size:12px;">本周</div>
+      <div style="background:#f5f5f5;color:#333;border-radius:16px;padding:4px 12px;font-size:12px;">本月</div>
+      <div style="background:#f5f5f5;color:#333;border-radius:16px;padding:4px 12px;font-size:12px;">全部</div>
+    </div>
+
+    <!-- 事项列表 -->
+    <div style="background:#e3f2fd;border-radius:12px;padding:14px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:start;">
+        <div>
+          <div style="font-weight:bold;color:#0d47a1;">📋 家长会</div>
+          <div style="font-size:12px;color:#1565c0;margin-top:4px;">5月25日 周一 15:00</div>
+          <div style="font-size:12px;color:#666;">二年级3班 · 期中总结</div>
+        </div>
+        <div style="background:#1565c0;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;">明天</div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:6px;">
+        <span style="background:rgba(255,255,255,0.7);border-radius:12px;padding:2px 8px;font-size:11px;">🔔 已设提醒</span>
+        <span style="background:rgba(255,255,255,0.7);border-radius:12px;padding:2px 8px;font-size:11px;">📤 分享给爸爸</span>
+      </div>
+    </div>
+
+    <div style="background:#f3e5f5;border-radius:12px;padding:14px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:start;">
+        <div>
+          <div style="font-weight:bold;color:#6a1b9a;">🎨 美术课</div>
+          <div style="font-size:12px;color:#7b1fa2;margin-top:4px;">每周六 9:00-11:00</div>
+          <div style="font-size:12px;color:#666;">少年宫3楼 · 带画板</div>
+        </div>
+        <div style="background:#7b1fa2;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;">每周</div>
+      </div>
+    </div>
+
+    <div style="background:#fff3e0;border-radius:12px;padding:14px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:start;">
+        <div>
+          <div style="font-weight:bold;color:#e65100;">💉 疫苗接种</div>
+          <div style="font-size:12px;color:#ef6c00;margin-top:4px;">6月15日 上午</div>
+          <div style="font-size:12px;color:#666;">社区卫生中心 · 流感疫苗</div>
+        </div>
+        <div style="background:#e65100;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;">3周后</div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:6px;">
+        <span style="background:rgba(255,255,255,0.7);border-radius:12px;padding:2px 8px;font-size:11px;">📤 分享给爸爸</span>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:8px;">
+      <button style="background:#1565c0;color:#fff;border:none;border-radius:20px;padding:10px 24px;font-size:14px;">+ 添加事项</button>
+    </div>
+  </div>
+</div>
+
+<!-- 延后: 记账模块 -->
+<div style="padding:16px;background:#f5f5f5;border-radius:12px;border:2px dashed #ccc;">
+  <div style="text-align:center;color:#999;">
+    <div style="font-size:24px;margin-bottom:4px;">💰</div>
+    <div style="font-weight:bold;">家庭记账（V2延后）</div>
+    <div style="font-size:13px;">先聚焦3个核心模块，记账功能在V2加入</div>
+  </div>
+</div>

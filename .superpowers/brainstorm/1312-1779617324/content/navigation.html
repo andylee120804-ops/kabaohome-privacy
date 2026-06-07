@@ -1,0 +1,95 @@
+<h2>APP 导航结构设计</h2>
+<p class="subtitle">底部5个Tab，每个家庭成员一目了然</p>
+
+<div class="mockup">
+  <div class="mockup-header">首页 - 家庭总览</div>
+  <div class="mockup-body" style="padding:0;">
+    <!-- 状态栏 -->
+    <div style="background:#fff;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f0f0f0;">
+      <span style="font-weight:bold;font-size:16px;">🏠 我的家</span>
+      <div style="display:flex;gap:8px;">
+        <span style="background:#e8f5e9;color:#2e7d32;border-radius:20px;padding:2px 10px;font-size:12px;">👩 妈妈</span>
+        <span style="background:#e3f2fd;color:#1565c0;border-radius:20px;padding:2px 10px;font-size:12px;">👨 爸爸</span>
+        <span style="background:#fff3e0;color:#e65100;border-radius:20px;padding:2px 10px;font-size:12px;">👧 宝贝</span>
+        <span style="background:#fce4ec;color:#c62828;border-radius:20px;padding:2px 10px;font-size:12px;">👵 奶奶</span>
+      </div>
+    </div>
+
+    <!-- 今日概览 -->
+    <div style="padding:16px;">
+      <div style="font-size:15px;font-weight:bold;margin-bottom:12px;">📌 今日事项</div>
+
+      <!-- 事项卡片 -->
+      <div style="background:linear-gradient(135deg,#fce4ec,#f8bbd0);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+        <div style="font-size:28px;">🌸</div>
+        <div style="flex:1;">
+          <div style="font-weight:bold;color:#880e4f;">姨妈周期第12天</div>
+          <div style="font-size:12px;color:#ad1457;">预计7天后开始 · 排卵期中</div>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:4px 8px;font-size:11px;color:#880e4f;">查看</div>
+      </div>
+
+      <div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+        <div style="font-size:28px;">💊</div>
+        <div style="flex:1;">
+          <div style="font-weight:bold;color:#1b5e20;">奶奶 · 降压药</div>
+          <div style="font-size:12px;color:#2e7d32;">上午9:00 · 已提醒 ✓</div>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:4px 8px;font-size:11px;color:#1b5e20;">已服</div>
+      </div>
+
+      <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+        <div style="font-size:28px;">📚</div>
+        <div style="flex:1;">
+          <div style="font-weight:bold;color:#0d47a1;">宝贝 · 家长会</div>
+          <div style="font-size:12px;color:#1565c0;">明天下午3:00 · 二年级3班</div>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:4px 8px;font-size:11px;color:#0d47a1;">详情</div>
+      </div>
+
+      <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;">
+        <div style="font-size:28px;">💊</div>
+        <div style="flex:1;">
+          <div style="font-weight:bold;color:#e65100;">奶奶 · 钙片</div>
+          <div style="font-size:12px;color:#ef6c00;">下午6:00 · 待提醒</div>
+        </div>
+        <div style="background:#fff;border-radius:8px;padding:4px 8px;font-size:11px;color:#e65100;">待服</div>
+      </div>
+    </div>
+
+    <!-- 底部导航 -->
+    <div style="background:#fff;border-top:1px solid #f0f0f0;display:flex;padding:8px 0 12px;position:sticky;bottom:0;">
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:22px;">🏠</div>
+        <div style="font-size:11px;color:#e91e63;font-weight:bold;">首页</div>
+      </div>
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:22px;">🌸</div>
+        <div style="font-size:11px;color:#999;">周期</div>
+      </div>
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:22px;">💊</div>
+        <div style="font-size:11px;color:#999;">健康</div>
+      </div>
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:22px;">📚</div>
+        <div style="font-size:11px;color:#999;">事项</div>
+      </div>
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:22px;">⚙️</div>
+        <div style="font-size:11px;color:#999;">我的</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:20px;padding:14px;background:#f0f4ff;border-radius:12px;font-size:13px;color:#333;">
+  <strong>设计要点：</strong>
+  <ul style="margin:8px 0 0;padding-left:20px;">
+    <li>首页是<strong>家庭总览</strong>，按时间线展示今日所有待办事项</li>
+    <li>每位家庭成员用<strong>专属颜色</strong>标识，一目了然</li>
+    <li>卡片式布局，大字体+大图标，<strong>老人也能轻松看清</strong></li>
+    <li>底部5个Tab，核心功能一键直达，不超过3层页面</li>
+    <li>支持鸿蒙<strong>桌面卡片</strong>，重要提醒直接在桌面显示</li>
+  </ul>
+</div>

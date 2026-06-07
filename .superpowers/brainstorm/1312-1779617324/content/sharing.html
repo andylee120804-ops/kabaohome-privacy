@@ -1,0 +1,202 @@
+<h2>数据共享与隐私控制</h2>
+<p class="subtitle">每条数据由创建者控制可见范围，兼顾共享与隐私</p>
+
+<!-- 核心模型 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header">🔐 三层可见范围模型</div>
+  <div class="mockup-body" style="padding:16px;">
+
+    <div style="display:flex;gap:12px;margin-bottom:16px;">
+      <div style="flex:1;background:#e8f5e9;border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">👁</div>
+        <div style="font-weight:bold;color:#1b5e20;font-size:14px;">仅自己</div>
+        <div style="font-size:11px;color:#2e7d32;margin-top:4px;">只有创建者可见</div>
+        <div style="margin-top:8px;font-size:11px;">
+          <div style="background:rgba(255,255,255,0.6);border-radius:4px;padding:2px 6px;margin:2px;">🌸 姨妈周期</div>
+          <div style="background:rgba(255,255,255,0.6);border-radius:4px;padding:2px 6px;margin:2px;">📝 个人备忘</div>
+          <div style="background:rgba(255,255,255,0.6);border-radius:4px;padding:2px 6px;margin:2px;">💰 个人收支</div>
+        </div>
+      </div>
+      <div style="flex:1;background:#e3f2fd;border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">👨‍👩‍👧</div>
+        <div style="font-weight:bold;color:#0d47a1;font-size:14px;">指定成员</div>
+        <div style="font-size:11px;color:#1565c0;margin-top:4px;">选择哪些家人可见</div>
+        <div style="margin-top:8px;font-size:11px;">
+          <div style="background:rgba(255,255,255,0.6);border-radius:4px;padding:2px 6px;margin:2px;">📚 孩子事项 → 父母</div>
+          <div style="background:rgba(255,255,255,0.6);border-radius:4px;padding:2px 6px;margin:2px;">💊 奶奶用药 → 全家</div>
+          <div style="background:rgba(255,255,255,0.6);border-radius:4px;padding:2px 6px;margin:2px;">📍 位置 → 全家</div>
+        </div>
+      </div>
+      <div style="flex:1;background:#fff3e0;border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">👨‍👩‍👧‍👦</div>
+        <div style="font-weight:bold;color:#e65100;font-size:14px;">全家可见</div>
+        <div style="font-size:11px;color:#ef6c00;margin-top:4px;">所有家庭成员</div>
+        <div style="margin-top:8px;font-size:11px;">
+          <div style="background:rgba(255,255,255,0.6);border-radius:4px;padding:2px 6px;margin:2px;">📅 家庭日历</div>
+          <div style="background:rgba(255,255,255,0.6);border-radius:4px;padding:2px 6px;margin:2px;">🛒 购物清单</div>
+          <div style="background:rgba(255,255,255,0.6);border-radius:4px;padding:2px 6px;margin:2px;">🔔 全家提醒</div>
+        </div>
+      </div>
+   div>
+
+    <div style="background:#fafafa;border-radius:8px;padding:12px;font-size:12px;color:#666;">
+      <strong>规则：</strong>每条数据创建时选择可见范围。模块有默认可见范围，但每条数据可单独覆盖。
+    </div>
+  </div>
+</div>
+
+<!-- 模块默认隐私策略 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header">📋 每个模块的默认隐私策略</div>
+  <div class="mockup-body" style="padding:0;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:#1a1a2e;color:#fff;">
+          <th style="padding:10px 12px;text-align:left;">模块</th>
+          <th style="padding:10px;text-align:center;">默认可见范围</th>
+          <th style="padding:10px;text-align:center;">可否逐条覆盖</th>
+          <th style="padding:10px;text-align:center;border-radius:0 8px 0 0;">示例</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background:#fce4ec;">
+          <td style="padding:8px 12px;">🌸 姨妈周期</td>
+          <td style="padding:8px;text-align:center;"><span style="background:#c62828;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">仅自己</span></td>
+          <td style="padding:8px;text-align:center;">不可覆盖</td>
+          <td style="padding:8px;text-align:center;font-size:11px;color:#666;">—</td>
+        </tr>
+        <tr style="background:#e8f5e9;">
+          <td style="padding:8px 12px;">💊 健康用药</td>
+          <td style="padding:8px;text-align:center;"><span style="background:#1565c0;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">指定成员</span></td>
+          <td style="padding:8px;text-align:center;">✅ 可覆盖</td>
+          <td style="padding:8px;text-align:center;font-size:11px;color:#666;">奶奶降压药→全家；妈妈维生素→仅自己</td>
+        </tr>
+        <tr style="background:#e3f2fd;">
+          <td style="padding:8px 12px;">📚 孩子事项</td>
+          <td style="padding:8px;text-align:center;"><span style="background:#1565c0;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">父母可见</span></td>
+          <td style="padding:8px;text-align:center;">✅ 可覆盖</td>
+          <td style="padding:8px;text-align:center;font-size:11px;color:#666;">家长会→父母；春游→全家含孩子</td>
+        </tr>
+        <tr style="background:#fff3e0;">
+          <td style="padding:8px 12px;">🔔 提醒事项</td>
+          <td style="padding:8px;text-align:center;"><span style="background:#e65100;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">按条设置</span></td>
+          <td style="padding:8px;text-align:center;">—</td>
+          <td style="padding:8px;text-align:center;font-size:11px;color:#666;">交电费→全家；纪念日→仅夫妻</td>
+        </tr>
+        <tr style="background:#f3e5f5;">
+          <td style="padding:8px 12px;">📅 家庭日历</td>
+          <td style="padding:8px;text-align:center;"><span style="background:#e65100;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">全家可见</span></td>
+          <td style="padding:8px;text-align:center;">✅ 可覆盖</td>
+          <td style="padding:8px;text-align:center;font-size:11px;color:#666;">家庭聚餐→全家；个人安排→仅自己</td>
+        </tr>
+        <tr style="background:#e0f2f1;">
+          <td style="padding:8px 12px;">📊 健康指标</td>
+          <td style="padding:8px;text-align:center;"><span style="background:#c62828;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">仅自己</span></td>
+          <td style="padding:8px;text-align:center;">✅ 可覆盖</td>
+          <td style="padding:8px;text-align:center;font-size:11px;color:#666;">奶奶血压→全家共享</td>
+        </tr>
+        <tr style="background:#e8eaf6;">
+          <td style="padding:8px 12px;">📍 位置共享</td>
+          <td style="padding:8px;text-align:center;"><span style="background:#e65100;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">全家可见</span></td>
+          <td style="padding:8px;text-align:center;">✅ 可覆盖</td>
+          <td style="padding:8px;text-align:center;font-size:11px;color:#666;">可临时关闭位置</td>
+        </tr>
+        <tr style="background:#fce4ec;">
+          <td style="padding:8px 12px;">📈 孩子成长</td>
+          <td style="padding:8px;text-align:center;"><span style="background:#1565c0;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">父母可见</span></td>
+          <td style="padding:8px;text-align:center;">✅ 可覆盖</td>
+          <td style="padding:8px;text-align:center;font-size:11px;color:#666;">成长曲线→父母</td>
+        </tr>
+        <tr style="background:#e3f2fd;">
+          <td style="padding:8px 12px;">🌤 天气穿衣</td>
+          <td style="padding:8px;text-align:center;"><span style="background:#e65100;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">全家可见</span></td>
+          <td style="padding:8px;text-align:center;">不需要</td>
+          <td style="padding:8px;text-align:center;font-size:11px;color:#666;">—</td>
+        </tr>
+        <tr style="background:#e8f5e9;">
+          <td style="padding:8px 12px;">📷 家庭相册</td>
+          <td style="padding:8px;text-align:center;"><span style="background:#e65100;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">全家可见</span></td>
+          <td style="padding:8px;text-align:center;">✅ 可覆盖</td>
+          <td style="padding:8px;text-align:center;font-size:11px;color:#666;">全家照→全家；私密照→仅自己</td>
+        </tr>
+        <tr style="background:#fff3e0;">
+          <td style="padding:8px 12px;">🛒 购物清单</td>
+          <td style="padding:8px;text-align:center;"><span style="background:#e65100;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">全家可见</span></td>
+          <td style="padding:8px;text-align:center;">不需要</td>
+          <td style="padding:8px;text-align:center;font-size:11px;color:#666;">—</td>
+        </tr>
+        <tr style="background:#f3e5f5;">
+          <td style="padding:8px 12px;">📝 家庭备忘</td>
+          <td style="padding:8px;text-align:center;"><span style="background:#1565c0;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;">按条设置</span></td>
+          <td style="padding:8px;text-align:center;">—</td>
+          <td style="padding:8px;text-align:center;font-size:11px;color:#666;">WiFi密码→全家；银行卡→仅自己</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 创建数据时的可见范围选择 -->
+<div class="mockup" style="margin-bottom:20px;">
+  <div class="mockup-header">➕ 创建数据时 — 可见范围选择器</div>
+  <div class="mockup-body" style="padding:16px;">
+    <div style="font-size:13px;color:#666;margin-bottom:12px;">以「添加提醒事项」为例：</div>
+
+    <div style="background:#fafafa;border-radius:10px;padding:14px;margin-bottom:12px;">
+      <div style="margin-bottom:10px;">
+        <div style="font-size:12px;color:#999;margin-bottom:4px;">事项名称</div>
+        <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px;font-size:14px;">交电费</div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <div style="font-size:12px;color:#999;margin-bottom:4px;">时间</div>
+        <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px;font-size:14px;">2026年5月28日</div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#999;margin-bottom:6px;">谁可以看到</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="background:#e65100;color:#fff;border-radius:16px;padding:6px 14px;font-size:12px;border:2px solid #e65100;">👨‍👩‍👧‍👦 全家</div>
+          <div style="background:#fff;color:#333;border-radius:16px;padding:6px 14px;font-size:12px;border:1px solid #ddd;">👨‍👩 仅父母</div>
+          <div style="background:#fff;color:#333;border-radius:16px;padding:6px 14px;font-size:12px;border:1px solid #ddd;">👁 仅自己</div>
+          <div style="background:#fff;color:#333;border-radius:16px;padding:6px 14px;font-size:12px;border:1px solid #ddd;">👥 自选...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 自选弹窗 -->
+    <div style="font-size:13px;color:#666;margin-bottom:6px;">点击「自选...」时弹出：</div>
+    <div style="background:#fff;border:2px solid #1565c0;border-radius:12px;padding:14px;">
+      <div style="font-weight:bold;margin-bottom:8px;">选择可见成员</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:20px;height:20px;background:#1565c0;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;">✓</div>
+          <span>👩 妈妈</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:20px;height:20px;background:#1565c0;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;">✓</div>
+          <span>👨 爸爸</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:20px;height:20px;background:#eee;border-radius:4px;"></div>
+          <span style="color:#999;">👧 宝贝</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:20px;height:20px;background:#eee;border-radius:4px;"></div>
+          <span style="color:#999;">👵 奶奶</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 技术实现 -->
+<div style="padding:16px;background:#f0f4ff;border-radius:12px;font-size:13px;color:#333;">
+  <h3 style="margin:0 0 8px;">🔧 技术实现要点</h3>
+  <ul style="margin:0;padding-left:20px;">
+    <li><strong>数据模型：</strong>每条记录都有 <code>visibility</code> 字段：PRIVATE / SELECTED / FAMILY</li>
+    <li><strong>成员列表：</strong><code>visibleMembers: string[]</code> 存储可见的家庭成员ID</li>
+    <li><strong>模块默认值：</strong>每个模块定义默认 visibility，创建时自动填充，用户可改</li>
+    <li><strong>不可覆盖：</strong>姨妈周期强制 PRIVATE，UI上不显示共享选项</li>
+    <li><strong>查询过滤：</strong>服务端根据当前用户ID过滤，只返回可见数据</li>
+    <li><strong>安全原则：</strong>共享控制在服务端强制执行，不只靠客户端隐藏</li>
+  </ul>
+</div>

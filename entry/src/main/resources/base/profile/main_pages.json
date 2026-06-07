@@ -1,0 +1,20 @@
+{
+  "src": [
+    "pages/Index",
+    "pages/LoginPage",
+    "pages/PeriodPage",
+    "pages/HealthPage",
+    "pages/KidsPage",
+    "pages/ReminderPage",
+    "pages/NotificationCenterPage",
+    "pages/LocationPage",
+    "pages/AlbumPage",
+    "pages/ShoppingPage",
+    "pages/MemoPage",
+    "pages/FamilySetupPage",
+    "pages/SettingsPage",
+    "pages/AccountingPage",
+    "pages/PreviewPage",
+    "pages/MapPickerPage"
+  ]
+}

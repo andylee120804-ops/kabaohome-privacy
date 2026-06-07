@@ -1,0 +1,111 @@
+<h2>架构方案对比</h2>
+<p class="subtitle">为你的家庭管理APP选择最合适的架构方向</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">方案A: 一体化模块架构</div>
+    <div class="mockup-body" style="padding:20px;">
+      <div style="background:#1a1a2e;border-radius:12px;padding:16px;margin-bottom:12px;">
+        <div style="color:#e94560;font-weight:bold;margin-bottom:8px;">📱 客户端 (ArkTS + ArkUI)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="background:#16213e;padding:8px 12px;border-radius:8px;color:#fff;font-size:13px;">姨妈追踪</div>
+          <div style="background:#16213e;padding:8px 12px;border-radius:8px;color:#fff;font-size:13px;">用药提醒</div>
+          <div style="background:#16213e;padding:8px 12px;border-radius:8px;color:#fff;font-size:13px;">孩子事项</div>
+          <div style="background:#16213e;padding:8px 12px;border-radius:8px;color:#fff;font-size:13px;">家庭记账</div>
+        </div>
+      </div>
+      <div style="background:#1a1a2e;border-radius:12px;padding:16px;margin-bottom:12px;">
+        <div style="color:#0f3460;font-weight:bold;margin-bottom:8px;">☁️ 华为云 Serverless</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="background:#16213e;padding:8px 12px;border-radius:8px;color:#fff;font-size:13px;">云函数</div>
+          <div style="background:#16213e;padding:8px 12px;border-radius:8px;color:#fff;font-size:13px;">云数据库</div>
+          <div style="background:#16213e;padding:8px 12px;border-radius:8px;color:#fff;font-size:13px;">推送服务</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:#888;">所有功能在一个App内，共享用户体系和数据层</div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">方案B: 微模块/元服务架构</div>
+    <div class="mockup-body" style="padding:20px;">
+      <div style="background:#1a1a2e;border-radius:12px;padding:16px;margin-bottom:12px;">
+        <div style="color:#e94560;font-weight:bold;margin-bottom:8px;">🏠 家庭中心 (主App)</div>
+        <div style="font-size:13px;color:#aaa;">统一入口 + 家庭管理 + 设置</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div style="background:#1a1a2e;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:20px;">🌸</div>
+          <div style="color:#fff;font-size:12px;">姨妈追踪</div>
+          <div style="color:#666;font-size:11px;">独立元服务</div>
+        </div>
+        <div style="background:#1a1a2e;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:20px;">💊</div>
+          <div style="color:#fff;font-size:12px;">用药提醒</div>
+          <div style="color:#666;font-size:11px;">独立元服务</div>
+        </div>
+        <div style="background:#1a1a2e;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:20px;">📚</div>
+          <div style="color:#fff;font-size:12px;">孩子事项</div>
+          <div style="color:#666;font-size:11px;">独立元服务</div>
+        </div>
+        <div style="background:#1a1a2e;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:20px;">💰</div>
+          <div style="color:#fff;font-size:12px;">家庭记账</div>
+          <div style="color:#666;font-size:11px;">独立元服务</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:#888;">每个模块是独立鸿蒙元服务，可单独开发部署和更新</div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>方案对比</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <thead>
+      <tr style="background:#1a1a2e;color:#fff;">
+        <th style="padding:10px;text-align:left;border-radius:8px 0 0 0;">维度</th>
+        <th style="padding:10px;text-align:center;">方案A 一体化</th>
+        <th style="padding:10px;text-align:center;border-radius:0 8px 0 0;">方案B 元服务</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="background:#f8f9fa;">
+        <td style="padding:10px;font-weight:bold;">开发速度</td>
+        <td style="padding:10px;text-align:center;color:#27ae60;">⭐⭐⭐ 快</td>
+        <td style="padding:10px;text-align:center;color:#e74c3c;">⭐ 慢</td>
+      </tr>
+      <tr>
+        <td style="padding:10px;font-weight:bold;">复杂度</td>
+        <td style="padding:10px;text-align:center;color:#27ae60;">低</td>
+        <td style="padding:10px;text-align:center;color:#e74c3c;">高</td>
+      </tr>
+      <tr style="background:#f8f9fa;">
+        <td style="padding:10px;font-weight:bold;">独立性</td>
+        <td style="padding:10px;text-align:center;color:#e74c3c;">耦合</td>
+        <td style="padding:10px;text-align:center;color:#27ae60;">⭐⭐⭐ 解耦</td>
+      </tr>
+      <tr>
+        <td style="padding:10px;font-weight:bold;">桌面卡片</td>
+        <td style="padding:10px;text-align:center;color:#f39c12;">⭐⭐ 有限</td>
+        <td style="padding:10px;text-align:center;color:#27ae60;">⭐⭐⭐ 每个模块独立卡片</td>
+      </tr>
+      <tr style="background:#f8f9fa;">
+        <td style="padding:10px;font-weight:bold;">迭代灵活性</td>
+        <td style="padding:10px;text-align:center;color:#f39c12;">⭐⭐ 整包更新</td>
+        <td style="padding:10px;text-align:center;color:#27ae60;">⭐⭐⭐ 单模块热更新</td>
+      </tr>
+      <tr>
+        <td style="padding:10px;font-weight:bold;">适合阶段</td>
+        <td style="padding:10px;text-align:center;color:#27ae60;">✅ MVP/初创期</td>
+        <td style="padding:10px;text-align:center;color:#f39c12;">成熟期/规模化</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div style="margin-top:24px;padding:16px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:12px;color:#fff;">
+  <h3 style="color:#fff;margin:0 0 8px 0;">💡 推荐方案A（一体化模块架构）</h3>
+  <p style="margin:0;font-size:14px;opacity:0.9;">原因：你是新项目，先用一体化快速验证核心功能和用户需求。模块内部保持清晰的分层和解耦，等业务成熟后再拆分为元服务。先跑通，再拆分。</p>
+</div>
