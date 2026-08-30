@@ -1,0 +1,50 @@
+// ============================================================
+// 卡包 (Kabao) - AGC 云存储安全规则
+// ============================================================
+// 官方语法（与 Firebase 不同）：
+//   agc.cloud.storage[
+//     match: /{bucket}/path/... {
+//       allow <get|list|create|update|delete|read|write>: if <condition>;
+//     }
+//   ]
+//
+// 支持的 String 方法：indexOf() / startsWith() / endsWith()
+// 不支持：matches() 正则、size 字段、复杂表达式
+//
+// 路径规划：
+//   /{bucket}/avatars/{userId}/{file}             用户头像，公开可读
+//   /{bucket}/family/{familyId}/photos/{photoId}  家庭相册照片
+//   /{bucket}/family/{familyId}/assets/{assetId}  家庭共享资源
+//   /{bucket}/backup/{userId}/{backupId}          用户私有备份
+// ============================================================
+
+agc.cloud.storage[
+
+  // ---------- 用户头像：公开读，仅本人写 ----------
+  match: /{bucket}/avatars/{userId}/{fileName} {
+    allow read: if true;
+    allow create, update, delete: if request.auth.uid == userId;
+  }
+
+  // ---------- 家庭相册照片：登录用户可读，仅上传者可改/删 ----------
+  match: /{bucket}/family/{familyId}/photos/{photoId} {
+    allow read: if request.auth.uid != null;
+    allow create: if request.auth.uid != null;
+    allow update, delete: if request.auth.uid != null
+                          && resource.metadata.uploaderUid == request.auth.uid;
+  }
+
+  // ---------- 家庭共享资源（语音留言、附件等） ----------
+  match: /{bucket}/family/{familyId}/assets/{assetId} {
+    allow read: if request.auth.uid != null;
+    allow create: if request.auth.uid != null;
+    allow update, delete: if request.auth.uid != null
+                          && resource.metadata.uploaderUid == request.auth.uid;
+  }
+
+  // ---------- 用户私有备份：仅本人读写 ----------
+  match: /{bucket}/backup/{userId}/{backupId} {
+    allow read, write: if request.auth.uid == userId;
+  }
+
+]

@@ -1,0 +1,12 @@
+{
+  "name": "validate-invite",
+  "version": "1.0.0",
+  "description": "Validate family invitation code",
+  "main": "index.js",
+  "dependencies": {
+    "@hw-agconnect/cloud-server": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

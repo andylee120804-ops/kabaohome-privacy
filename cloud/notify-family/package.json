@@ -1,0 +1,12 @@
+{
+  "name": "notify-family",
+  "version": "1.0.0",
+  "description": "Push notifications when family members change",
+  "main": "index.js",
+  "dependencies": {
+    "@hw-agconnect/cloud-server": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

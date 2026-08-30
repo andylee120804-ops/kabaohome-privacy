@@ -1,0 +1,36 @@
+# HarmonyOS
+.idea/
+.build/
+.hvigor/
+oh_modules/
+entry/build/
+entry/.preview/
+node_modules/
+local.properties
+
+# 签名凭据 — 包含 keyPassword/storePassword，不可提交
+build-profile.json5
+entry/build-profile.json5
+
+# AGC 配置 — 包含 client_secret/api_key，不可提交
+entry/src/main/resources/rawfile/agconnect-services.json
+
+# 签名文件
+*.p12
+*.p7b
+*.cer
+
+# Superpowers brainstorming and worktrees
+.superpowers/
+.worktrees/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# Code Scanner cache
+.codescanner/

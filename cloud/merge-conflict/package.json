@@ -1,0 +1,12 @@
+{
+  "name": "merge-conflict",
+  "version": "1.0.0",
+  "description": "Server-side conflict merge: version priority + last-write-wins",
+  "main": "index.js",
+  "dependencies": {
+    "@hw-agconnect/cloud-server": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

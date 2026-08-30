@@ -1,0 +1,10 @@
+{
+  "modelVersion": "6.1.0",
+  "name": "kabaohome",
+  "version": "1.0.0",
+  "description": "卡宝Home - 家庭管理助手",
+  "main": "",
+  "author": "",
+  "license": "ISC",
+  "dependencies": {}
+}

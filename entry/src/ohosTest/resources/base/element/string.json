@@ -1,0 +1,12 @@
+{
+  "string": [
+    {
+      "name": "description_ohosTest",
+      "value": "卡宝Home 单元测试"
+    },
+    {
+      "name": "test_name",
+      "value": "卡宝Home测试"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "push-data",
+  "version": "1.0.0",
+  "description": "Push local data changes to Cloud DB",
+  "main": "index.js",
+  "dependencies": {
+    "@hw-agconnect/cloud-server": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

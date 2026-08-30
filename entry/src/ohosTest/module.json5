@@ -1,0 +1,35 @@
+{
+  "module": {
+    "name": "ohosTest",
+    "type": "feature",
+    "description": "$string:description_ohosTest",
+    "mainElement": "TestAbility",
+    "deviceTypes": [
+      "default",
+      "tablet"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false,
+    "bundleName": "com.family.kabaohome",
+    "abilities": [
+      {
+        "name": "TestAbility",
+        "srcEntry": "./ets/testability/TestAbility.ets",
+        "description": "$string:description_ohosTest",
+        "label": "$string:test_name",
+        "exported": true,
+        "startWindowBackground": "$color:start_window_background",
+        "skills": [
+          {
+            "entities": [
+              "entity.system.home"
+            ],
+            "actions": [
+              "action.system.home"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "objectTypes": [
+    {
+      "objectTypeName": "Family",
+      "fields": [
+        { "fieldName": "id", "fieldType": "String", "belongPrimaryKey": true, "notNull": true, "isNeedEncrypt": false, "isSensitive": false },
+        { "fieldName": "name", "fieldType": "String", "belongPrimaryKey": false, "notNull": true, "isNeedEncrypt": false, "isSensitive": false, "defaultValue": "" },
+        { "fieldName": "creatorId", "fieldType": "String", "belongPrimaryKey": false, "notNull": true, "isNeedEncrypt": false, "isSensitive": false, "defaultValue": "" },
+        { "fieldName": "inviteCode", "fieldType": "String", "belongPrimaryKey": false, "notNull": true, "isNeedEncrypt": false, "isSensitive": false, "defaultValue": "" },
+        { "fieldName": "inviteCodeExpiresAt", "fieldType": "String", "belongPrimaryKey": false, "notNull": true, "isNeedEncrypt": false, "isSensitive": false, "defaultValue": "" },
+        { "fieldName": "createdAt", "fieldType": "String", "belongPrimaryKey": false, "notNull": true, "isNeedEncrypt": false, "isSensitive": false, "defaultValue": "" },
+        { "fieldName": "updatedAt", "fieldType": "String", "belongPrimaryKey": false, "notNull": true, "isNeedEncrypt": false, "isSensitive": false, "defaultValue": "" },
+        { "fieldName": "syncStatus", "fieldType": "String", "belongPrimaryKey": false, "notNull": false, "isNeedEncrypt": false, "isSensitive": false }
+      ],
+      "indexes": [
+        { "indexName": "creatorId", "indexList": [{ "fieldName": "creatorId", "sortType": "ASC" }] }
+      ]
+    }
+  ],
+  "permissions": [
+    {
+      "objectTypeName": "Family",
+      "permissions": [
+        { "role": "World", "rights": [] },
+        { "role": "Authenticated", "rights": ["Read"] },
+        { "role": "Creator", "rights": ["Read", "Upsert", "Delete"] },
+        { "role": "Administrator", "rights": ["Read", "Upsert", "Delete"] }
+      ]
+    }
+  ]
+}

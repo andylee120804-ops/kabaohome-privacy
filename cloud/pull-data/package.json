@@ -1,0 +1,12 @@
+{
+  "name": "pull-data",
+  "version": "1.0.0",
+  "description": "Pull incremental data by familyId and timestamp",
+  "main": "index.js",
+  "dependencies": {
+    "@hw-agconnect/cloud-server": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

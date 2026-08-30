@@ -1,0 +1,2884 @@
+{
+  "schemaVersion": 1,
+  "objectTypes": [
+    {
+      "objectTypeName": "FamilyMember",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "userId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "name",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "avatar",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "color",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "role",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "birthDate",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "phone",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isCustodial",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "fontSizeMode",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "claimToken",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "status",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "syncStatus",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        },
+        {
+          "indexName": "userId",
+          "indexList": [
+            {
+              "fieldName": "userId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "PeriodRecord",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "startDate",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "endDate",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "cycleLength",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "duration",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "symptoms",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "mood",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "note",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        },
+        {
+          "indexName": "creatorId",
+          "indexList": [
+            {
+              "fieldName": "creatorId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "IntimacyRecord",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "date",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "pregnancyRisk",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "cycleDay",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "note",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        },
+        {
+          "indexName": "creatorId",
+          "indexList": [
+            {
+              "fieldName": "creatorId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "Medication",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "forMemberId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "medicineName",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "dosage",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "frequency",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "timeSlots",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "startDate",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "endDate",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isActive",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "note",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        },
+        {
+          "indexName": "forMemberId",
+          "indexList": [
+            {
+              "fieldName": "forMemberId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "MedicationLog",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "medicationId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "timeSlot",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "takenBy",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "takenAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "status",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "note",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "medicationId",
+          "indexList": [
+            {
+              "fieldName": "medicationId",
+              "sortType": "ASC"
+            }
+          ]
+        },
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "HealthMetric",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "forMemberId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "metricType",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "value",
+          "fieldType": "Float",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "unit",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "measuredAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isAbnormal",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "note",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        },
+        {
+          "indexName": "forMemberId",
+          "indexList": [
+            {
+              "fieldName": "forMemberId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "KidEvent",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "forMemberId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "title",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "description",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "eventType",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "eventTime",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "location",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isRecurring",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "recurrenceRule",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "reminderSettings",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isSharedWith",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isCompleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "completedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        },
+        {
+          "indexName": "forMemberId",
+          "indexList": [
+            {
+              "fieldName": "forMemberId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "GrowthRecord",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "forMemberId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "height",
+          "fieldType": "Float",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "weight",
+          "fieldType": "Float",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "headCircumference",
+          "fieldType": "Float",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "milestone",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "recordDate",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "photoUrl",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "note",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        },
+        {
+          "indexName": "forMemberId",
+          "indexList": [
+            {
+              "fieldName": "forMemberId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "Reminder",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "title",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "description",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "reminderType",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "dueTime",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isRecurring",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "recurrenceRule",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isCompleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "completedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "reminderSettings",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        },
+        {
+          "indexName": "creatorId",
+          "indexList": [
+            {
+              "fieldName": "creatorId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "ShoppingItem",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "itemName",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "category",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "quantity",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isPurchased",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "purchasedBy",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "purchasedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "Photo",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "url",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "thumbnailUrl",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "description",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "eventTag",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "takenAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "Memo",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "title",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "content",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "category",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isEncrypted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        },
+        {
+          "indexName": "creatorId",
+          "indexList": [
+            {
+              "fieldName": "creatorId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "AccountingRecord",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "type",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "amount",
+          "fieldType": "Float",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "category",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "description",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "date",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "forMemberId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        },
+        {
+          "indexName": "forMemberId",
+          "indexList": [
+            {
+              "fieldName": "forMemberId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "Budget",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "year",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "month",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "amount",
+          "fieldType": "Float",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "category",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "LocationPlace",
+      "fields": [
+        {
+          "fieldName": "id",
+          "fieldType": "String",
+          "belongPrimaryKey": true,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "familyId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "creatorId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibility",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "visibleMembers",
+          "fieldType": "Text",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "version",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "createdAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "updatedAt",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "isDeleted",
+          "fieldType": "Integer",
+          "belongPrimaryKey": false,
+          "notNull": false,
+          "isNeedEncrypt": false,
+          "isSensitive": false
+        },
+        {
+          "fieldName": "name",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "placeType",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "latitude",
+          "fieldType": "Float",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "longitude",
+          "fieldType": "Float",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        },
+        {
+          "fieldName": "address",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "forMemberId",
+          "fieldType": "String",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": ""
+        },
+        {
+          "fieldName": "radius",
+          "fieldType": "Float",
+          "belongPrimaryKey": false,
+          "notNull": true,
+          "isNeedEncrypt": false,
+          "isSensitive": false,
+          "defaultValue": 0
+        }
+      ],
+      "indexes": [
+        {
+          "indexName": "familyId",
+          "indexList": [
+            {
+              "fieldName": "familyId",
+              "sortType": "ASC"
+            }
+          ]
+        },
+        {
+          "indexName": "forMemberId",
+          "indexList": [
+            {
+              "fieldName": "forMemberId",
+              "sortType": "ASC"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    {
+      "objectTypeName": "FamilyMember",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "PeriodRecord",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "IntimacyRecord",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "Medication",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "MedicationLog",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "HealthMetric",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "KidEvent",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "GrowthRecord",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "Reminder",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "ShoppingItem",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "Photo",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "Memo",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "AccountingRecord",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "Budget",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    },
+    {
+      "objectTypeName": "LocationPlace",
+      "permissions": [
+        {
+          "role": "World",
+          "rights": []
+        },
+        {
+          "role": "Authenticated",
+          "rights": [
+            "Read",
+            "Upsert"
+          ]
+        },
+        {
+          "role": "Creator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        },
+        {
+          "role": "Administrator",
+          "rights": [
+            "Read",
+            "Upsert",
+            "Delete"
+          ]
+        }
+      ]
+    }
+  ]
+}
