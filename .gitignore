@@ -34,3 +34,20 @@ Thumbs.db
 
 # Code Scanner cache
 .codescanner/
+.claude/settings.local.json
+
+# AGC cloud function credential (contains plaintext client_secret, never commit)
+# 覆盖 cloud/shared/ 及所有函数目录内的 shared/（deploy.cjs 会把凭证复制进各函数包）
+cloud/shared/agc-credential.json
+cloud/*/shared/agc-credential.json
+
+# AGC API Client credential (contains plaintext client_secret, never commit)
+cloud/shared/agc-apiclient-*.json
+cloud/*/shared/agc-apiclient-*.json
+
+# AGC Service Account credential (contains private key, never commit)
+cloud/shared/agc-service-account*.json
+cloud/*/shared/agc-service-account*.json
+
+# DevEco 性能分析器调试产物（含数百 MB 的 htrace/perfdata/视频，禁止提交）
+.appanalyzer/
