@@ -154,6 +154,18 @@ export class PeriodViewModel {
     return this.db.getIntimacyRecords();
   }
 
+  /** 构建归属主体选项（我 + 有可见记录的其他成员；查看者模式排除自己） */
+  getSubjectOptions(viewerMode: boolean): SubjectOption[] {
+    const membersById = new Map<string, string>();
+    for (const m of this.db.getMembers()) {
+      if (m.id) {
+        membersById.set(m.id, m.name || '');
+      }
+    }
+    return buildSubjectOptions(this.getSelfSubjectId(), this.getRecords(), this.getIntimacyRecords(),
+      membersById, this.getMembersUserIdMap(), viewerMode);
+  }
+
   getCycleTrendRows(subjectId?: string): CycleTrendRow[] {
     return calculateCycleTrendRows(this.getRecordsBySubject(subjectId || this.getSelfSubjectId()));
   }
