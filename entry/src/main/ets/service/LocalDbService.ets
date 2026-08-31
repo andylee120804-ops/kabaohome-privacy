@@ -902,6 +902,18 @@ export class LocalDbService {
     }
   }
 
+  // ---- 姨妈页查看的归属主体记忆（仅查看家人模式下记住上次看的成员）----
+  async savePeriodViewSubject(subjectId: string): Promise<void> {
+    const p = this.ensurePrefs();
+    await p.put('period_view_subject', subjectId);
+    await p.flush();
+  }
+
+  getPeriodViewSubject(): string {
+    const p = this.ensurePrefs();
+    return p.getSync('period_view_subject', '') as string;
+  }
+
   // ---- 是否已加入家庭 ----
   async saveHasFamily(hasFamily: boolean): Promise<void> {
     const p = this.ensurePrefs();
