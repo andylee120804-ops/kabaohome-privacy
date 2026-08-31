@@ -8,6 +8,7 @@ import modelTest from './Model.test';
 import periodViewModelTest from './PeriodViewModel.test';
 import healthViewModelTest from './HealthViewModel.test';
 import kidsViewModelTest from './KidsViewModel.test';
+import authNavigationTest from './AuthNavigation.test';
 
 export default function testsuite() {
   utilsTest();
@@ -16,4 +17,5 @@ export default function testsuite() {
   periodViewModelTest();
   healthViewModelTest();
   kidsViewModelTest();
+  authNavigationTest();
 }

@@ -3,11 +3,13 @@
  */
 import Ability from '@ohos.app.ability.UIAbility';
 import { window } from '@kit.ArkUI';
-import { hypium } from '@ohos/hypium';
+import { AbilityConstant, Want } from '@kit.AbilityKit';
+import { abilityDelegatorRegistry } from '@kit.TestKit';
+import { Hypium } from '@ohos/hypium';
 import testsuite from '../test/List.test';
 
 export default class TestAbility extends Ability {
-  onCreate(want, launchParam) {
+  onCreate(want: Want, launchParam: AbilityConstant.LaunchParam) {
     console.log('[TestAbility] onCreate');
   }
 
@@ -18,7 +20,9 @@ export default class TestAbility extends Ability {
         return;
       }
       console.info('[TestAbility] Succeeded in loading content');
-      hypium.suiteStart();
+      const abilityDelegator = abilityDelegatorRegistry.getAbilityDelegator();
+      const abilityDelegatorArguments = abilityDelegatorRegistry.getArguments();
+      Hypium.hypiumTest(abilityDelegator, abilityDelegatorArguments, testsuite);
     });
   }
 }
