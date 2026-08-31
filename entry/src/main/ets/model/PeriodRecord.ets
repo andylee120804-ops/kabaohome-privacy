@@ -26,4 +26,6 @@ export interface PeriodReminderSettings {
   remind1DayBefore: boolean;
   remindOvulation: boolean;
   remindFertile: boolean;
+  /** 是否显式记录自己的姨妈（覆盖"无记录自动进入仅查看模式"）。可选：旧 JSON 无此字段视为 false */
+  recordSelf?: boolean;
 }

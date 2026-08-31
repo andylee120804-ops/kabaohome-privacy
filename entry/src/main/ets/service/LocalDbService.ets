@@ -893,12 +893,12 @@ export class LocalDbService {
     const p = this.ensurePrefs();
     const raw = p.getSync('period_reminder_settings', '') as string;
     if (!raw) {
-      return { remind3DaysBefore: true, remind1DayBefore: true, remindOvulation: false, remindFertile: false };
+      return { remind3DaysBefore: true, remind1DayBefore: true, remindOvulation: false, remindFertile: false, recordSelf: false };
     }
     try {
       return JSON.parse(raw) as PeriodReminderSettings;
     } catch (_) {
-      return { remind3DaysBefore: true, remind1DayBefore: true, remindOvulation: false, remindFertile: false };
+      return { remind3DaysBefore: true, remind1DayBefore: true, remindOvulation: false, remindFertile: false, recordSelf: false };
     }
   }
 
