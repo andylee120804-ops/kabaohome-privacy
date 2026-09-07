@@ -41,6 +41,31 @@ const MIN_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 /** 等待云端文件传输的最长时间；超时按失败处理（照片记录保留本地路径，后续补传自愈） */
 const TRANSFER_TIMEOUT_MS = 60 * 1000;
 
+/**
+ * Cloud DB Text 字段中存 JSON 数组的字段名（与 agc-clouddb-schema 对齐）。
+ * convertFromCloud 对这些字段做归一化：空串/非法 JSON → []，避免页面拿到
+ * 字符串/undefined 后调用数组方法崩溃（如 Index 的 m.timeSlots.every()）。
+ */
+const ARRAY_FIELDS: string[] = [
+  'visibleMembers', 'symptoms', 'timeSlots', 'reminderSettings',
+  'isSharedWith', 'mutedModules', 'tagIds'
+];
+
+/**
+ * Cloud DB 数值字段名（Integer/Long/Float/Double/Byte/Short，与 agc-clouddb-object-types.json 对齐）。
+ *
+ * 服务端 SDK 对 CloudDBZoneGenericObject 反序列化时不做类型转换（Utils.deserializeObjects
+ * 只有 typed 模型路径才走 deserializeNumber），AGC 返回的 Float/Integer 字段可能是字符串
+ * （如 amount:"5000"、version:"1"）。客户端若原样存储，`"5000".toFixed(0)` 会抛
+ * "undefined is not callable" 导致整页 JsCrash（审核致命问题，家庭记账点击闪退根因）。
+ * convertFromCloud 在此白名单内统一把字符串转回 number。
+ */
+const NUMERIC_FIELDS: string[] = [
+  'amount', 'cycleDay', 'cycleLength', 'duration', 'headCircumference',
+  'height', 'latitude', 'longitude', 'month', 'radius', 'value', 'version',
+  'weight', 'width', 'year'
+];
+
 // 重新导出类型映射函数，保持向后兼容
 export { toCloudType, toLocalKey, CLIENT_TO_CLOUD_TYPE, CLOUD_TO_CLIENT, ALL_CLOUD_TYPES };
 
@@ -101,6 +126,22 @@ export interface PushResult {
 export interface PullResult {
   serverTime: number;
   snapshots: Record<string, object[]>;  // 云端类型名 → records
+}
+
+/** 家人实时位置行（LocationShare，服务端已按可见性过滤，仅含我能看到的成员） */
+export interface ClientLocationShareRow {
+  id: string;
+  familyId: string;
+  memberId: string;
+  visibility: string;
+  visibleMembers: string[];
+  shareEnabled: boolean;
+  arrivalNotifyEnabled: boolean;
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  updatedAt: string;
+  version: number;
 }
 
 /** 同步状态 */
@@ -682,6 +723,61 @@ export class CloudService {
     }
   }
 
+  /**
+   * 主动拉取家人实时位置（LocationShare），绕过 syncAll 节流与本地缓存。
+   *
+   * 与照片/经期页不同：LocationShare 是 1 分钟心跳数据，不进本地业务缓存
+   * （避免 mergeToLocal/reconcileLocalDirty 卷入版本对账回推），只返回给调用方
+   * （LocationPage）展示。服务端已按可见性过滤：拿到的行就是「我能看到的人」。
+   *
+   * @param familyId - 家庭 ID
+   * @returns 归一化后的 LocationShare 行数组（空数组 = 云端不可用/无行）
+   */
+  async pullLocationShares(familyId: string): Promise<ClientLocationShareRow[]> {
+    if (!this.isCloudAvailable() || !familyId) return [];
+    try {
+      const result = await this.pullFromCloudDb(familyId, ['LocationShare']);
+      const records = result.snapshots['LocationShare'];
+      if (!Array.isArray(records)) return [];
+      const rows: ClientLocationShareRow[] = [];
+      for (let i = 0; i < records.length; i++) {
+        const r = records[i] as Record<string, Object>;
+        const row: ClientLocationShareRow = {
+          id: r['id'] as string,
+          familyId: r['familyId'] as string,
+          memberId: r['memberId'] as string,
+          visibility: (r['visibility'] as string) ?? 'FAMILY',
+          visibleMembers: this.parseStringArrayField(r['visibleMembers']),
+          shareEnabled: r['shareEnabled'] === 1 || r['shareEnabled'] === true,
+          arrivalNotifyEnabled: r['arrivalNotifyEnabled'] === 1 || r['arrivalNotifyEnabled'] === true,
+          latitude: r['latitude'] as number,
+          longitude: r['longitude'] as number,
+          accuracy: (r['accuracy'] as number) ?? 0,
+          updatedAt: (r['updatedAt'] as string) ?? '',
+          version: (r['version'] as number) ?? 1
+        };
+        rows.push(row);
+      }
+      return rows;
+    } catch (err) {
+      hilog.warn(DOMAIN, TAG, 'pullLocationShares failed: %{public}s', (err as Error).message);
+      return [];
+    }
+  }
+
+  private parseStringArrayField(v: Object | undefined): string[] {
+    if (Array.isArray(v)) return v as string[];
+    if (typeof v === 'string' && v.length > 0) {
+      try {
+        const parsed = JSON.parse(v) as Object;
+        return Array.isArray(parsed) ? parsed as string[] : [];
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  }
+
   async syncPendingPhotoUploads(): Promise<number> {
     const db = LocalDbService.getInstance();
     const photos = db.getPhotos();
@@ -708,7 +804,10 @@ export class CloudService {
         thumbnailUrl: photo.thumbnailUrl,
         description: photo.description,
         eventTag: photo.eventTag,
-        takenAt: photo.takenAt
+        takenAt: photo.takenAt,
+        isOnWall: photo.isOnWall === true,
+        width: photo.width || 0,
+        height: photo.height || 0
       };
       try {
         await db.updatePhoto(updated);
@@ -988,9 +1087,11 @@ export class CloudService {
           // 云端版本更高，用云端的
           localRecords[localIdx] = cloudObj;
           updated++;
-        } else if (cloudVersion === localVersion && cloudUpdatedAt && localUpdatedAt) {
-          // 版本相同，比较 updatedAt
-          if (cloudUpdatedAt > localUpdatedAt) {
+        } else if (cloudVersion === localVersion && cloudUpdatedAt) {
+          // 版本相同：云端有 updatedAt 时比较。
+          // 本地 updatedAt 为空（如 join 时 validate-invite 返回的占位 Family，仅含部分字段）
+          // 视为不完整记录，直接用云端完整记录补全本地。
+          if (!localUpdatedAt || cloudUpdatedAt > localUpdatedAt) {
             localRecords[localIdx] = cloudObj;
             updated++;
           }
@@ -1058,12 +1159,12 @@ export class CloudService {
       const creatorId = rec['creatorId'] as string;
       const isMine = !!creatorId && this.db.isRecordCreator(creatorId);
 
-      if (localVersion > cloudVersion) {
-        // 本地版本更高：确有未推送的编辑 → 回推
-        this.push(cloudType, localRecords[li], localVersion, 'upsert');
-        repushed++;
-      } else if (!cloud && isMine) {
-        // 本地独有且本人创建：新建未推送 → 回推
+      // 只回推「本人创建」的记录（云端无此行 = 新建未推送；本地版本更高 = 有未推送编辑）。
+      // 他人记录一律不回推：对账快照可能不含该行（增量/分页拉取、陈旧副本、云端已删），
+      // 以当前用户身份回推他人的记录，会在云端触发「xx 添加了地点/写了新备忘」之类
+      // 假通知（通知按上传者取名），还可能复活已被作者删除的记录。
+      if (!isMine) continue;
+      if (!cloud || localVersion > cloudVersion) {
         this.push(cloudType, localRecords[li], localVersion, 'upsert');
         repushed++;
       }
@@ -1085,6 +1186,8 @@ export class CloudService {
    * 规则：
    * - 字段名以 'is' 开头且值为 0/1 -> boolean（isSharedWith 除外，它是 Text 数组字段）
    * - 字符串值以 '[' 或 '{' 开头 -> 尝试 JSON.parse
+   * - 已知数组字段（Cloud DB Text 存 JSON）为空串/非法 JSON 时归一化为数组，
+   *   避免任何页面拿到字符串/undefined 后调用 .every()/.includes()/.map() 崩溃
    */
   private convertFromCloud(cloudRecord: object): Record<string, Object> {
     const obj = cloudRecord as Record<string, Object>;
@@ -1098,40 +1201,52 @@ export class CloudService {
         continue;
       }
 
-      // Integer (0/1) -> boolean，字段名以 is 开头（isSharedWith 除外，它是 Text 数组）
-      if (typeof val === 'number' && (val === 0 || val === 1) &&
-          key.startsWith('is') && key !== 'isSharedWith') {
-        result[key] = val === 1;
+      // Integer (0/1) -> boolean，字段名以 is 开头（isSharedWith 除外，它是 Text 数组）。
+      // 云端可能以数字 0/1 或字符串 "0"/"1" 返回，两种都要转，否则 mergeToLocal 的
+      // isDeleted === true 判断失效（云端删除的记录本地永远删不掉）。
+      if (key.startsWith('is') && key !== 'isSharedWith' &&
+          ((typeof val === 'number' && (val === 0 || val === 1)) ||
+           (typeof val === 'string' && (val === '0' || val === '1')))) {
+        result[key] = Number(val) === 1;
         continue;
       }
 
-      // Text (JSON string) -> Array/Object
-      // 只对已知的数组/对象字段做 JSON.parse，避免用户内容如 "[草稿]备忘" 误匹配
-      if (typeof val === 'string' && val.length > 0 && (val[0] === '[' || val[0] === '{')) {
-        const isKnownJsonField = key === 'visibleMembers' || key === 'isSharedWith' || key === 'tagIds';
-        if (isKnownJsonField) {
-          try {
-            result[key] = JSON.parse(val);
-            continue;
-          } catch (e) {
-            // 不是合法 JSON，保留原始字符串
-          }
-        } else {
-          try {
-            const parsed: Record<string, Object> | Object[] = JSON.parse(val) as Record<string, Object> | Object[];
-            // 仅当 parse 结果是 Array 或纯 Object（非 string/number）时才替换
-            if (Array.isArray(parsed) || (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed))) {
-              result[key] = parsed;
-              continue;
-            }
-          } catch (e) {
-            // 不是合法 JSON，保留原始字符串
-          }
+      // 数值字段字符串 -> number（见 NUMERIC_FIELDS 注释：SDK 泛型对象不做类型转换，
+      // Float 如 amount 返回字符串，客户端直接渲染 toFixed 会崩溃）
+      if (typeof val === 'string' && NUMERIC_FIELDS.indexOf(key) >= 0) {
+        const num = Number(val);
+        result[key] = Number.isFinite(num) ? num : 0;
+        continue;
+      }
+
+      // Text (JSON string) -> Array，只对已知数组字段做 JSON.parse（白名单）。
+      // 不能对所有 "["/"{" 开头的字符串都解析：用户内容（如提醒标题 "{}"、"[]"）
+      // 被转成对象/数组后，页面调用 title.replace() 等字符串方法会 TypeError 崩溃，
+      // 且写入本地存储后每次启动都崩（无法进入 = 审核致命问题）。
+      if (typeof val === 'string' && val.length > 0 && ARRAY_FIELDS.indexOf(key) >= 0) {
+        try {
+          result[key] = JSON.parse(val);
+          continue;
+        } catch (e) {
+          // 不是合法 JSON，保留原始字符串（下方归一化会兜底成 []）
         }
       }
 
       result[key] = val;
     }
+
+    // 数组字段归一化：空串 / 非数组字符串（如异常数据）→ []
+    // 云端缺失的字段不新增（避免给类型外加字段），由各页面读取端兜底。
+    for (let i = 0; i < ARRAY_FIELDS.length; i++) {
+      const field = ARRAY_FIELDS[i];
+      if (result[field] === undefined || result[field] === null) {
+        continue;
+      }
+      if (!Array.isArray(result[field])) {
+        result[field] = [];
+      }
+    }
+
     return result;
   }
 

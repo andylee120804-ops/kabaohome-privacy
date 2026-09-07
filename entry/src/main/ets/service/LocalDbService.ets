@@ -61,11 +61,23 @@ export interface LocationShareSettings {
   notifyOnArrival: boolean;
   /** 上次到达通知触发记录，用于防抖（出入围栏抖动时不重复推） */
   lastNotifiedAt?: ArrivalNotificationRecord[];
+  /** 上次成功上报坐标（LocationReporter 维护）：暂停共享时实时定位不可用则用其兜底推关闭态 */
+  lastLat?: number;
+  lastLon?: number;
+  lastReportAt?: number;
+  /** 关闭态（暂停/仅自己）尚未成功同步到云端（LocationReporter 维护，跨重启持久） */
+  cloudSharePending?: boolean;
 }
 
 export interface ArrivalNotificationRecord {
   placeId: string;
   notifiedAt: number;
+}
+
+/** 位置共享隐私同意记录（本机，按当前用户；退出/登出时清除，重新确认） */
+export interface LocationConsent {
+  userId: string;
+  grantedAt: number;
 }
 
 export interface LocationShareEntry {
@@ -149,6 +161,22 @@ export class LocalDbService {
     this.writeCache.set(key, json);
     await p.put(key, json);
     await p.flush();
+  }
+
+  /** 通用布尔设置（UI 记忆类，如页面视图密度），键加 setting_ 前缀与业务列表隔离 */
+  async saveSetting(key: string, value: boolean): Promise<void> {
+    const p = this.ensurePrefs();
+    const k = 'setting_' + key;
+    this.writeCache.set(k, value ? '1' : '0');
+    await p.put(k, value ? '1' : '0');
+    await p.flush();
+  }
+
+  getSetting(key: string, defValue: boolean): boolean {
+    const k = 'setting_' + key;
+    const cached = this.writeCache.get(k);
+    const raw = cached ?? this.ensurePrefs().getSync(k, defValue ? '1' : '0') as string;
+    return raw === '1';
   }
 
   // TODO(V2): 迁移到 RelationalStore 后改为异步 async getList
@@ -941,7 +969,16 @@ export class LocalDbService {
     } else {
       records = this.getList<AccountingRecord>('accounting_records').filter(r => r.familyId === familyId || r.familyId === '');
     }
-    return filterByVisibility(records, this.getCurrentUserId(), this.getCurrentMemberId());
+    const visible = filterByVisibility(records, this.getCurrentUserId(), this.getCurrentMemberId());
+    // 云端 Float/Integer 字段可能以字符串返回（如 amount:"5000"、version:"1"），读取时归一化：
+    // 否则 "100"+"200"="100200" 串接污染统计、toFixed 渲染崩溃、version+1 变成字符串拼接
+    for (const r of visible) {
+      const amt = Number(r.amount);
+      r.amount = Number.isFinite(amt) ? amt : 0;
+      const ver = Number(r.version);
+      r.version = Number.isFinite(ver) ? ver : 1;
+    }
+    return visible;
   }
 
   async updateAccountingRecord(record: AccountingRecord): Promise<void> {
@@ -974,7 +1011,18 @@ export class LocalDbService {
     const familyId = this.getCurrentFamilyId();
     if (!familyId) return null;
     const budgets = this.getList<Budget>('budgets');
-    return budgets.find(b => b.year === year && b.month === month && b.familyId === familyId) ?? null;
+    for (const b of budgets) {
+      // 云端 Budget 的 year/month/amount 可能以字符串返回（服务端 SDK 泛型对象不做类型转换），
+      // Number 归一化匹配 + 返回值，避免旧数据匹配失败（预算隐身）或渲染 toFixed 崩溃
+      if (Number(b.year) === year && Number(b.month) === month && b.familyId === familyId) {
+        const amt = Number(b.amount);
+        return {
+          id: b.id, familyId: b.familyId, year: Number(b.year), month: Number(b.month),
+          amount: Number.isFinite(amt) ? amt : 0, createdAt: b.createdAt, updatedAt: b.updatedAt
+        };
+      }
+    }
+    return null;
   }
 
   // ---- 通知确认时间 ----
@@ -1155,12 +1203,33 @@ export class LocalDbService {
       'current_user_id', 'has_family', 'agc_user_id',
       'period_reminder_settings', 'last_notification_ack_time',
       'published_reminder_ids', 'theme_color', 'emoji_style',
-      'location_settings', 'location_share_map', 'dismissed_today_date',
+      'location_settings', 'location_share_map', 'location_consent', 'dismissed_today_date',
       'huawei_union_id', 'dismissed_today_ids'
     ];
     for (const key of scalarKeys) {
       await p.delete(key);
     }
+    await p.flush();
+  }
+
+  // ---- 位置共享隐私同意（华为合规：首次开启位置共享前须用户明确同意） ----
+  /**
+   * 读取本机同意记录；无记录 = 从未同意（首次开启共享前必须弹说明框）
+   */
+  getLocationConsent(): LocationConsent | null {
+    const p = this.ensurePrefs();
+    const raw = p.getSync('location_consent', '') as string;
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as LocationConsent;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async saveLocationConsent(consent: LocationConsent): Promise<void> {
+    const p = this.ensurePrefs();
+    await p.put('location_consent', JSON.stringify(consent));
     await p.flush();
   }
 

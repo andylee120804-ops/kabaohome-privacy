@@ -192,7 +192,9 @@ export class AccountingViewModel {
   getBudgetProgress(year: number, month: number): BudgetProgressResult {
     const budget = this.getBudget(year, month);
     const stats = this.getMonthlyStats(year, month);
-    const budgetAmount = budget?.amount ?? 0;
+    // 兜底归一化：历史本地数据可能有字符串金额（云端 Float 以字符串返回），
+    // 不转成 number 的话页面 `budget.toFixed(0)` 抛 "undefined is not callable" 崩溃
+    const budgetAmount = this.toAmount(budget?.amount);
     const result: BudgetProgressResult = {
       budget: budgetAmount,
       spent: stats.totalExpense,
@@ -200,6 +202,12 @@ export class AccountingViewModel {
       percentage: budgetAmount > 0 ? Math.min((stats.totalExpense / budgetAmount) * 100, 100) : 0
     };
     return result;
+  }
+
+  /** 把可能来自云端字符串的数值统一转成 number（非法值回退 0） */
+  private toAmount(v: number | null | undefined): number {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
   }
 
   // ---- 分类工具 ----

@@ -12,6 +12,7 @@ import { FamilyMember } from '../model/FamilyMember';
 import { LocalDbService } from '../service/LocalDbService';
 import { AuthService } from '../service/AuthService';
 import { PushService } from '../service/PushService';
+import { LocationReporter } from '../service/LocationReporter';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { promptAction } from '@kit.ArkUI';
 import router from '@ohos.router';
@@ -171,7 +172,7 @@ struct SettingsPage {
               this.DangerSection()
               // 隐私政策入口：从「个性」分组移出，改为页面底部轻量链接（法规入口保持可达，层级弱化）
               Text('《隐私政策》')
-                .fontSize(12)
+                .fontSize(this.fontSize - 2)
                 .fontColor(NEUTRAL_INK_SECONDARY)
                 .width('100%')
                 .textAlign(TextAlign.Center)
@@ -231,10 +232,10 @@ struct SettingsPage {
 
       Row() {
         Column() {
-          Text(this.familyName).fontSize(22).fontWeight(FontWeight.Bold).fontColor(Color.White)
+          Text(this.familyName).fontSize(this.titleFontSize + 4).fontWeight(FontWeight.Bold).fontColor(Color.White)
           Row() {
-            Text(`邀请码: ${this.inviteCode}`).fontSize(12).fontColor('#FFFFFF')
-            Text('🔄').fontSize(12).fontColor('#FFFFFF').margin({ left: 6 })
+            Text(`邀请码: ${this.inviteCode}`).fontSize(this.fontSize - 2).fontColor('#FFFFFF')
+            Text('🔄').fontSize(this.fontSize - 2).fontColor('#FFFFFF').margin({ left: 6 })
               .onClick(async () => {
                 this.inviteCode = await this.familyVm.refreshInviteCode();
               })
@@ -260,8 +261,8 @@ struct SettingsPage {
           Row({ space: 8 }) {
             ForEach(this.familyMembers, (member: FamilyMember) => {
               Row() {
-                Text(member.avatar).fontSize(12)
-                Text(member.name).fontSize(12).fontColor(Color.White).margin({ left: 3 })
+                Text(member.avatar).fontSize(this.fontSize - 2)
+                Text(member.name).fontSize(this.fontSize - 2).fontColor(Color.White).margin({ left: 3 })
               }
               .padding({ left: 8, right: 8, top: 4, bottom: 4 })
               .borderRadius(16)
@@ -289,16 +290,16 @@ struct SettingsPage {
   @Builder
   FamilySection() {
     Column() {
-      Text('家庭').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 8, left: 4 })
+      Text('家庭').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 8, left: 4 })
 
       Column() {
         // 注意：图标不能用 @Builder 按值传参（基础类型参数首次渲染后被冻结，
         // 切换表情风格不会刷新），必须在无参 @Builder 内直接读 this.getEmoji()
         Row() {
           Text(this.getEmoji().modules).fontSize(20).margin({ right: 12 })
-          Text('功能模块管理').fontSize(16).fontColor(NEUTRAL_INK).layoutWeight(1)
-          Text(`${this.enabledModules.length}/3`).fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ right: 6 })
-          Text('▶').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY)
+          Text('功能模块管理').fontSize(this.fontSize + 2).fontColor(NEUTRAL_INK).layoutWeight(1)
+          Text(`${this.enabledModules.length}/3`).fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ right: 6 })
+          Text('▶').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY)
         }
         .width('100%')
         .padding({ left: 16, right: 16, top: 16, bottom: 16 })
@@ -308,9 +309,9 @@ struct SettingsPage {
 
         Row() {
           Text(this.getEmoji().members).fontSize(20).margin({ right: 12 })
-          Text('家庭成员管理').fontSize(16).fontColor(NEUTRAL_INK).layoutWeight(1)
-          Text(`${this.familyMembers.length}人`).fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ right: 6 })
-          Text('▶').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY)
+          Text('家庭成员管理').fontSize(this.fontSize + 2).fontColor(NEUTRAL_INK).layoutWeight(1)
+          Text(`${this.familyMembers.length}人`).fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ right: 6 })
+          Text('▶').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY)
         }
         .width('100%')
         .padding({ left: 16, right: 16, top: 16, bottom: 16 })
@@ -320,8 +321,8 @@ struct SettingsPage {
 
         Row() {
           Text(this.getEmoji().invite).fontSize(20).margin({ right: 12 })
-          Text('邀请家人加入').fontSize(16).fontColor(NEUTRAL_INK).layoutWeight(1)
-          Text('▶').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY)
+          Text('邀请家人加入').fontSize(this.fontSize + 2).fontColor(NEUTRAL_INK).layoutWeight(1)
+          Text('▶').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY)
         }
         .width('100%')
         .padding({ left: 16, right: 16, top: 16, bottom: 16 })
@@ -340,16 +341,16 @@ struct SettingsPage {
   @Builder
   PersonalSection() {
     Column() {
-      Text('个性').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 8, left: 4 })
+      Text('个性').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 8, left: 4 })
 
       Column() {
         Row() {
           Text(this.getEmoji().theme).fontSize(20).margin({ right: 12 })
-          Text('家庭色系').fontSize(16).fontColor(NEUTRAL_INK).layoutWeight(1)
+          Text('家庭色系').fontSize(this.fontSize + 2).fontColor(NEUTRAL_INK).layoutWeight(1)
           Circle().width(14).height(14).fill(this.getPalette().primary).margin({ right: 6 })
             .border({ width: 2, color: this.getPalette().border })
-          Text(this.getPalette().name).fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ right: 4 })
-          Text('▶').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY)
+          Text(this.getPalette().name).fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ right: 4 })
+          Text('▶').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY)
         }
         .width('100%')
         .padding({ left: 16, right: 16, top: 16, bottom: 16 })
@@ -360,9 +361,9 @@ struct SettingsPage {
 
         Row() {
           Text(this.getEmoji().emojiStyle).fontSize(20).margin({ right: 12 })
-          Text('表情风格').fontSize(16).fontColor(NEUTRAL_INK).layoutWeight(1)
-          Text(this.getEmoji().name).fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ right: 4 })
-          Text('▶').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY)
+          Text('表情风格').fontSize(this.fontSize + 2).fontColor(NEUTRAL_INK).layoutWeight(1)
+          Text(this.getEmoji().name).fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ right: 4 })
+          Text('▶').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY)
         }
         .width('100%')
         .padding({ left: 16, right: 16, top: 16, bottom: 16 })
@@ -372,9 +373,9 @@ struct SettingsPage {
 
         Row() {
           Text(this.getEmoji().font).fontSize(20).margin({ right: 12 })
-          Text('字体模式').fontSize(16).fontColor(NEUTRAL_INK).layoutWeight(1)
-          Text(this.isLargeFont ? '大字体' : '标准').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ right: 4 })
-          Text('▶').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY)
+          Text('字体模式').fontSize(this.fontSize + 2).fontColor(NEUTRAL_INK).layoutWeight(1)
+          Text(this.isLargeFont ? '大字体' : '标准').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ right: 4 })
+          Text('▶').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY)
         }
         .width('100%')
         .padding({ left: 16, right: 16, top: 16, bottom: 16 })
@@ -394,12 +395,12 @@ struct SettingsPage {
   @Builder
   NotifySection() {
     Column() {
-      Text('通知').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 8, left: 4 })
+      Text('通知').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 8, left: 4 })
 
       Column() {
         Row() {
           Text('🔔').fontSize(20).margin({ right: 12 })
-          Text('家庭动态通知').fontSize(16).fontColor(NEUTRAL_INK).layoutWeight(1)
+          Text('家庭动态通知').fontSize(this.fontSize + 2).fontColor(NEUTRAL_INK).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.notifyEnabled })
             .selectedColor(BRAND_CORAL)
             .onChange((isOn: boolean) => {
@@ -427,7 +428,7 @@ struct SettingsPage {
       // 退出家庭
       Row() {
         Text(this.getEmoji().exit).fontSize(20).margin({ right: 12 })
-        Text('退出家庭').fontSize(16).fontColor(SEMANTIC_ERROR).layoutWeight(1)
+        Text('退出家庭').fontSize(this.fontSize + 2).fontColor(SEMANTIC_ERROR).layoutWeight(1)
       }
       .width('100%')
       .padding({ left: 16, right: 16, top: 16, bottom: 16 })
@@ -453,7 +454,7 @@ struct SettingsPage {
       // 退出登录（清登录态 + 回到华为账号登录页）
       Row() {
         Text('🔄').fontSize(20).margin({ right: 12 })
-        Text('退出登录').fontSize(16).fontColor(SEMANTIC_ERROR).layoutWeight(1)
+        Text('退出登录').fontSize(this.fontSize + 2).fontColor(SEMANTIC_ERROR).layoutWeight(1)
       }
       .width('100%')
       .padding({ left: 16, right: 16, top: 16, bottom: 16 })
@@ -659,7 +660,7 @@ struct SettingsPage {
                   .borderRadius(4).padding({ left: 5, right: 5, top: 1, bottom: 1 }).margin({ right: 4 })
               }
               if (this.isFamilyCreator && member.userId !== AuthService.getInstance().getCurrentUserId()) {
-                Text('✕').fontSize(12).fontColor(SEMANTIC_ERROR).margin({ left: 4 })
+                Text('✕').fontSize(this.fontSize - 2).fontColor(SEMANTIC_ERROR).margin({ left: 4 })
                   .onClick(() => {
                     AlertDialog.show({
                       title: '确认删除',
@@ -692,7 +693,7 @@ struct SettingsPage {
             Column() {
               Text('👥').fontSize(40)
               Text('还没有家庭成员').fontSize(14).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 8 })
-              Text('添加家庭成员后，可以在各模块设置数据共享范围').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 4 })
+              Text('添加家庭成员后，可以在各模块设置数据共享范围').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 4 })
             }
             .width('100%').padding(30).alignItems(HorizontalAlign.Center)
             .borderRadius(10).backgroundColor(BG_SUBTLE)
@@ -760,7 +761,7 @@ struct SettingsPage {
   @Builder
   ThemeColorDialogContent() {
     Text(`${this.getEmoji().theme} 选择家庭色系`).fontSize(20).fontWeight(FontWeight.Bold).margin({ bottom: 16 })
-    Text('色系会应用在顶部家庭卡、按钮、标签等位置').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 16 })
+    Text('色系会应用在顶部家庭卡、按钮、标签等位置').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 16 })
 
     Column({ space: 10 }) {
       ForEach(THEME_PALETTES, (palette: ThemePalette) => {
@@ -802,7 +803,7 @@ struct SettingsPage {
   @Builder
   EmojiStyleDialogContent() {
     Text(`${this.getEmoji().emojiStyle} 选择表情风格`).fontSize(20).fontWeight(FontWeight.Bold).margin({ bottom: 16 })
-    Text('选择菜单图标的表情风格').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 16 })
+    Text('选择菜单图标的表情风格').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 16 })
 
     Column({ space: 10 }) {
       ForEach(EMOJI_SETS, (emojiSet: EmojiSet) => {
@@ -845,12 +846,12 @@ struct SettingsPage {
   @Builder
   FontSizeDialogContent() {
     Text(`${this.getEmoji().font} 选择字体模式`).fontSize(20).fontWeight(FontWeight.Bold).margin({ bottom: 16 })
-    Text('大字体模式会增大页面文字，方便阅读').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 16 })
+    Text('大字体模式会增大页面文字，方便阅读').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 16 })
 
     Column({ space: 10 }) {
       Row() {
         Column() {
-          Text('标准').fontSize(16).fontWeight(FontWeight.Medium).fontColor(NEUTRAL_INK)
+          Text('标准').fontSize(this.fontSize + 2).fontWeight(FontWeight.Medium).fontColor(NEUTRAL_INK)
           Text('默认字体大小').fontSize(13).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 4 })
         }
         .alignItems(HorizontalAlign.Start)
@@ -872,7 +873,7 @@ struct SettingsPage {
 
       Row() {
         Column() {
-          Text('大字体').fontSize(18).fontWeight(FontWeight.Medium).fontColor(NEUTRAL_INK)
+          Text('大字体').fontSize(this.fontSize + 4).fontWeight(FontWeight.Medium).fontColor(NEUTRAL_INK)
           Text('文字更大，阅读更轻松').fontSize(14).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 4 })
         }
         .alignItems(HorizontalAlign.Start)
@@ -933,7 +934,7 @@ struct SettingsPage {
 
     Text('将邀请码或二维码分享给家人').fontSize(13).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 16 })
     Button('关闭')
-      .width('100%').height(48).fontSize(16)
+      .width('100%').height(48).fontSize(this.fontSize + 2)
       .fontColor(Color.White).backgroundColor(this.getPalette().primary).borderRadius(24)
       .onClick(() => { this.activeDialog = 'none'; })
   }
@@ -952,7 +953,7 @@ struct SettingsPage {
         Text(this.lastCreatedClaimToken)
           .fontSize(36).fontWeight(FontWeight.Bold).fontColor(SEMANTIC_INFO).margin({ top: 8, bottom: 8 })
         Text('该家人登录后，输入此码即可认领身份')
-          .fontSize(12).fontColor(NEUTRAL_INK_SECONDARY)
+          .fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY)
       }
       .width('100%')
       .padding(16).borderRadius(12)
@@ -973,7 +974,7 @@ struct SettingsPage {
     } else {
       Text('添加家庭成员').fontSize(20).fontWeight(FontWeight.Bold).margin({ bottom: 16 })
       TextInput({ placeholder: '姓名（如：爸爸、宝贝）' })
-        .width('100%').fontSize(16).height(48).padding(10).borderRadius(10).margin({ bottom: 12 })
+        .width('100%').fontSize(this.fontSize + 2).height(48).padding(10).borderRadius(10).margin({ bottom: 12 })
         .onChange((v: string) => { this.newMemberName = v; })
 
       Text('选择角色').fontSize(14).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 8 })
@@ -1055,10 +1056,10 @@ struct SettingsPage {
   EditMemberDialogContent() {
     Text('修改成员信息').fontSize(20).fontWeight(FontWeight.Bold).margin({ bottom: 8 })
     Text('修改名字和角色，仅本人或家庭创建者可操作')
-      .fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 16 })
+      .fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 16 })
 
     TextInput({ placeholder: '姓名', text: this.editMemberName })
-      .width('100%').fontSize(16).height(48).padding(10).borderRadius(10).margin({ bottom: 12 })
+      .width('100%').fontSize(this.fontSize + 2).height(48).padding(10).borderRadius(10).margin({ bottom: 12 })
       .onChange((v: string) => { this.editMemberName = v; })
 
     Text('选择角色').fontSize(14).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 8 })
@@ -1120,7 +1121,7 @@ struct SettingsPage {
         .fontSize(36).fontWeight(FontWeight.Bold).fontColor(SEMANTIC_INFO)
         .margin({ top: 8, bottom: 8 })
       Text('该家人登录后，输入此码即可认领身份')
-        .fontSize(12).fontColor(NEUTRAL_INK_SECONDARY)
+        .fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY)
     }
     .width('100%')
     .padding(16).borderRadius(12)
@@ -1185,13 +1186,13 @@ struct SettingsPage {
       Text('💡 你作为创建者始终可见，无需选择自己').fontSize(11).fontColor(NEUTRAL_INK_SECONDARY)
         .width('100%').margin({ bottom: 8 })
       if (this.familyMembers.length === 0) {
-        Text('暂无家庭成员，请先在成员管理中添加').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY)
+        Text('暂无家庭成员，请先在成员管理中添加').fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY)
           .width('100%').margin({ top: 4 })
       } else {
         Flex({ wrap: FlexWrap.Wrap }) {
           ForEach(this.familyMembers.filter(m => m.userId !== AuthService.getInstance().getCurrentUserId()), (member: FamilyMember) => {
             Text(`${member.avatar} ${member.name}`)
-              .fontSize(12)
+              .fontSize(this.fontSize - 2)
               .fontColor(this.tempMemberIds.includes(member.id) ? Color.White : NEUTRAL_INK_SECONDARY)
               .backgroundColor(this.tempMemberIds.includes(member.id) ? member.color : BORDER_SUBTLE)
               .borderRadius(14)
@@ -1209,7 +1210,7 @@ struct SettingsPage {
       }
     }
 
-    Text(this.getSharingHint()).fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 12 })
+    Text(this.getSharingHint()).fontSize(this.fontSize - 2).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 12 })
 
     if (this.sharingModuleId === ModuleId.PERIOD) {
       Divider().color(BORDER_SUBTLE).margin({ top: 14, bottom: 12 })
@@ -1432,6 +1433,16 @@ struct SettingsPage {
         message: `已更新 ${updatedCount} 条历史记录的共享范围`,
         duration: 2500
       });
+    }
+    // 位置模块：共享范围变更立即同步云端行 visibility
+    // （改为「仅自己」→ scheduleFlush 删云端行：PRIVATE 心跳不上报，只能靠冲刷，
+    //   落盘 pending 保证跨重启/失败也能把旧行清掉）
+    if (this.sharingModuleId === ModuleId.LOCATION) {
+      if (visibility === Visibility.PRIVATE) {
+        LocationReporter.getInstance().scheduleFlush().catch(() => {});
+      } else {
+        LocationReporter.getInstance().reportNow().catch(() => {});
+      }
     }
   }
 
