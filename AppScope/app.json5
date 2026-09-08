@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.family.kabaohome",
     "vendor": "kabaohome",
-    "versionCode": 1050000,
-    "versionName": "1.05",
+    "versionCode": 1040000,
+    "versionName": "1.04",
     "icon": "$media:app_icon",
     "label": "$string:app_name"
   }

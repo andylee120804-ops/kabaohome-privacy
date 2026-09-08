@@ -1,1 +1,9 @@
-{"color": [{"name": "start_window_background", "value": "#FFFFFF"}, {"name": "window_background", "value": "#FAFAFA"}]}
+{"color": [
+  {"name": "start_window_background", "value": "#FAF7F4"},
+  {"name": "window_background", "value": "#FAF7F4"},
+  {"name": "brand_primary", "value": "#B8402A"},
+  {"name": "brand_primary_light", "value": "#C84A32"},
+  {"name": "brand_warm_bg", "value": "#FAF7F4"},
+  {"name": "text_primary", "value": "#1A1A1A"},
+  {"name": "text_secondary", "value": "#5C5C5C"}
+]}

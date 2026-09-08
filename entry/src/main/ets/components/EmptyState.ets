@@ -1,30 +1,43 @@
 /**
- * 空状态提示组件
+ * 空状态提示组件 — 方向 C 极简编辑
+ * 墨黑标题 + 纸白背景 + 墨黑主按钮（直角）
  */
+import {
+  NEUTRAL_INK, NEUTRAL_INK_SECONDARY, BRAND_RED, BG_PAPER,
+  FONT_BODY, FONT_BODY_LARGE, FONT_CAPTION
+} from '../common/DesignTokens';
+
 @Component
 export struct EmptyState {
-  @Prop icon: string = '📭';
+  @Prop icon: string = '';
   @Prop title: string = '暂无数据';
   @Prop subtitle: string = '';
   @Prop actionText: string = '';
-  @Prop buttonColor: string = '#1565C0';
   onAction?: () => void;
 
   build() {
     Column({ space: 12 }) {
-      Text(this.icon).fontSize(52)
-      Text(this.title).fontSize(18).fontColor('#666666').fontWeight(FontWeight.Bold)
+      if (this.icon) {
+        Text(this.icon).fontSize(48).fontColor(NEUTRAL_INK_SECONDARY)
+      }
+      Text(this.title)
+        .fontSize(FONT_BODY_LARGE)
+        .fontColor(NEUTRAL_INK)
+        .fontWeight(FontWeight.Medium)
       if (this.subtitle) {
-        Text(this.subtitle).fontSize(15).fontColor('#999999')
+        Text(this.subtitle)
+          .fontSize(FONT_BODY)
+          .fontColor(NEUTRAL_INK_SECONDARY)
       }
       if (this.actionText) {
         Button(this.actionText)
-          .fontSize(16)
+          .fontSize(FONT_BODY)
           .fontColor(Color.White)
-          .backgroundColor(this.buttonColor)
-          .borderRadius(20)
-          .padding({ left: 24, right: 24, top: 8, bottom: 8 })
+          .backgroundColor(NEUTRAL_INK)
+          .borderRadius(0)
+          .padding({ left: 32, right: 32, top: 12, bottom: 12 })
           .margin({ top: 8 })
+          .type(ButtonType.Normal)
           .onClick(() => {
             if (this.onAction) this.onAction();
           })
@@ -35,5 +48,6 @@ export struct EmptyState {
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
     .padding(40)
+    .backgroundColor(BG_PAPER)
   }
 }

@@ -67,11 +67,11 @@ export class KidsViewModel {
 
   getEventTypeColor(type: string): string {
     const map: Record<string, string> = {
-      'school': '#1565C0',
-      'activity': '#E65100',
-      'medical': '#C62828',
-      'other': '#2E7D32'
+      'school': '#4E6884',       // 雾蓝
+      'activity': '#876117',     // 深琥珀
+      'medical': '#B8402A',      // 朱红
+      'other': '#3D6B5C'         // 墨绿
     };
-    return map[type] ?? '#666666';
+    return map[type] ?? '#5C5C5C';
   }
 }

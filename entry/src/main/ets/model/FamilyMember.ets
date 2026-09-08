@@ -9,7 +9,7 @@ export class FamilyMember {
   userId: string = '';
   name: string = '';
   avatar: string = '';
-  color: string = '#1565C0';
+  color: string = '#5C5C5C';
   role: MemberRole = MemberRole.DAD;
   birthDate: string = '';
   phone: string = '';
@@ -19,6 +19,8 @@ export class FamilyMember {
   claimToken: string = '';
   /** 成员状态：ACTIVE=已激活, UNCLAIMED=待认领 */
   status: string = MemberStatus.ACTIVE;
+  /** 本地软删标记（退出/移除家庭用；云端 schema 无此字段，上传时由白名单过滤） */
+  isDeleted: boolean = false;
   createdAt: string = '';
   updatedAt: string = '';
   syncStatus?: string;

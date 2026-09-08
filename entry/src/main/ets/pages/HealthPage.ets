@@ -1,29 +1,44 @@
 /**
  * 卡宝Home - 健康用药页面（服药确认+指标趋势+异常标记）
+ * 方向 C · 极简编辑：纸白底 + 墨黑正文 + flat 列表 + 衬线标题 + 文本动作
  */
-import { Visibility, FontSizeMode, THEME_PALETTES } from '../common/Constants';
+import { Visibility, FontSizeMode, PAGE_TRANSITION_DURATION, ModuleId } from '../common/Constants';
+import {
+  BG_PAPER, BG_CARD, BG_SUBTLE, DIVIDER,
+  NEUTRAL_INK, NEUTRAL_INK_SECONDARY, NEUTRAL_INK_TERTIARY,
+  BRAND_RED, BRAND_RED_LG,
+  SEMANTIC_SUCCESS, SEMANTIC_WARNING, SEMANTIC_ERROR, SEMANTIC_INFO, MIST_PURPLE,
+  FONT_FAMILY_SERIF, FONT_BODY, FONT_BODY_LARGE, FONT_CAPTION, FONT_CAPTION_SM,
+  FONT_TITLE, FONT_SUBTITLE, SPACE_MD, SPACE_LG,
+  getModuleIconRes
+} from '../common/DesignTokens';
 import { FamilyMember } from '../model/FamilyMember';
 import { Medication, MedicationLog } from '../model/Medication';
 import { HealthMetric } from '../model/HealthMetric';
 import { HealthViewModel } from '../viewmodel/HealthViewModel';
 import { FamilyViewModel } from '../viewmodel/FamilyViewModel';
 import { LocalDbService } from '../service/LocalDbService';
+import { CloudService } from '../service/CloudService';
 import { EmptyState } from '../components/EmptyState';
 import { TrendChart } from '../components/TrendChart';
-import { generateId, formatDate } from '../common/Utils';
+import { generateId, formatDate, formatIsoToLocal, creatorDisplayLabel } from '../common/Utils';
 import router from '@ohos.router';
+import { curves } from '@kit.ArkUI';
 
 @Entry
 @Component
 struct HealthPage {
   @State currentTab: number = 0;
+  @State isRefreshing: boolean = false;
   @State selectedMemberIndex: number = 0;
   @State familyMembers: FamilyMember[] = [];
   @State medications: Medication[] = [];
   @State todayLogs: MedicationLog[] = [];
   @State metrics: HealthMetric[] = [];
   @State showAddMedication: boolean = false;
+  @State isSavingMed: boolean = false;
   @State showAddMetric: boolean = false;
+  @State isSavingMetric: boolean = false;
   @State newMedName: string = '';
   @State newMedDosage: string = '';
   @State newMedFrequency: string = '';
@@ -36,9 +51,6 @@ struct HealthPage {
   @State isLargeFont: boolean = false;
   @State fontSize: number = 16;
   @State titleFontSize: number = 20;
-  @State themeLightBg: string = '#FFF5F0';
-  @State themePrimary: string = '#E8654A';
-  @State themeBorder: string = '#FFD4C2';
   @State medTimeSlots: string[] = [];
   @State editingMedId: string = '';
   @State editingMetricId: string = '';
@@ -82,11 +94,15 @@ struct HealthPage {
     }
     const member = this.familyVm.getCurrentMember();
     this.isLargeFont = member?.fontSizeMode === FontSizeMode.LARGE;
-    const palette = THEME_PALETTES.find(p => p.id === this.db.getThemeColor()) ?? THEME_PALETTES[0];
-    this.themeLightBg = palette.lightBg;
-    this.themePrimary = palette.primary;
-    this.themeBorder = palette.border;
     this.applyFontMode();
+  }
+
+  private isMedicationTimeSlotMissed(medId: string, timeSlot: string): boolean {
+    return !this.healthVm.isMedicationTaken(medId, timeSlot) && this.isSlotMissed(timeSlot);
+  }
+
+  private getOtherMedicationMembers(): FamilyMember[] {
+    return this.familyMembers.filter((member: FamilyMember) => member.id !== this.defaultMemberId);
   }
 
   private applyFontMode(): void {
@@ -100,7 +116,7 @@ struct HealthPage {
   }
 
   private isCreator(creatorId: string): boolean {
-    return creatorId === this.db.getCurrentUserId();
+    return this.db.isRecordCreator(creatorId);
   }
 
   /** 获取某条服药记录的服药人名字 */
@@ -120,6 +136,34 @@ struct HealthPage {
   private loadMemberData(memberId: string): void {
     this.medications = this.healthVm.getMedicationsByMember(memberId);
     this.metrics = this.healthVm.getMetricsByMember(memberId);
+  }
+
+  /**
+   * 下拉刷新：先从云端强制拉取合并（家人新记录/编辑即时可见），再重载本地列表。
+   * 无家庭或云端不可用时仅重载本地，不做无谓请求。
+   */
+  private async handlePullRefresh(): Promise<void> {
+    try {
+      const familyId = this.db.getCurrentFamilyId();
+      if (familyId && CloudService.getInstance().isCloudAvailable()) {
+        await CloudService.getInstance().syncAll(familyId, true);
+      }
+    } finally {
+      this.isRefreshing = false;
+      // 重载成员/今日服药/当前浏览成员的数据
+      this.familyMembers = this.healthVm.getMembersWithMedication();
+      if (this.familyMembers.length === 0) {
+        const family = this.db.getCurrentFamily();
+        if (family) {
+          this.familyMembers = this.db.getMembersByFamilyId(family.id);
+        }
+      }
+      this.shareableMembers = this.healthVm.getHealthShareableMembers();
+      this.todayLogs = this.healthVm.getTodayLogs();
+      if (this.familyMembers.length > 0) {
+        this.loadMemberData(this.familyMembers[this.selectedMemberIndex].id);
+      }
+    }
   }
 
   /** 打开添加用药弹窗，初始化默认服药人 */
@@ -144,28 +188,49 @@ struct HealthPage {
     this.showAddMedication = true;
   }
 
+  pageTransition(): void {
+    PageTransitionEnter({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Right)
+    PageTransitionExit({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Left)
+    PageTransitionEnter({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Left)
+    PageTransitionExit({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Right)
+  }
+
   build() {
     Stack() {
       Column() {
+        // —— 顶栏 ——
         Row() {
           Row() {
-            Text('<')
-              .fontSize(22).fontWeight(FontWeight.Bold).fontColor(this.themePrimary)
-          }.width(34).height(34).borderRadius(17)
-          .backgroundColor(this.themeBorder)
+            Image($r('app.media.icon_back'))
+              .width(18).height(18)
+              .fillColor(NEUTRAL_INK)
+          }
+          .width(40).height(40)
           .justifyContent(FlexAlign.Center)
           .onClick(() => { router.back(); })
-          Text('💊 健康用药').fontSize(this.titleFontSize).fontWeight(FontWeight.Bold).layoutWeight(1).textAlign(TextAlign.Center)
+
           Row() {
-            Text('+')
-              .fontSize(20)
-              .fontColor(Color.White)
+            Image(getModuleIconRes('health'))
+              .width(16).height(16)
+              .fillColor(BRAND_RED_LG)
+              .margin({ right: 6 })
+            Text('健康用药')
+              .fontFamily(FONT_FAMILY_SERIF)
+              .fontSize(this.titleFontSize)
               .fontWeight(FontWeight.Bold)
+              .fontColor(NEUTRAL_INK)
           }
-          .width(32)
-          .height(32)
-          .borderRadius(16)
-          .backgroundColor(this.themePrimary)
+          .layoutWeight(1)
+          .justifyContent(FlexAlign.Center)
+
+          Text('+')
+            .fontSize(20)
+            .fontColor(Color.White)
+            .fontWeight(FontWeight.Bold)
+          }
+          .width(32).height(32)
+          .borderRadius(0)
+          .backgroundColor(NEUTRAL_INK)
           .justifyContent(FlexAlign.Center)
           .onClick(() => {
             if (this.currentTab === 0) {
@@ -178,70 +243,79 @@ struct HealthPage {
               this.showAddMetric = true;
             }
           })
-        }
-        .width('100%')
-        .padding({ left: 16, right: 16, top: 12, bottom: 8 })
+      }
+      .width('100%')
+      .padding({ left: SPACE_MD, right: SPACE_MD, top: 12, bottom: 8 })
 
-        // 成员切换
+        // 成员切换 — flat text tabs
         if (this.familyMembers.length > 0) {
           Scroll() {
-            Row({ space: 8 }) {
+            Row({ space: 0 }) {
               ForEach(this.familyMembers, (member: FamilyMember, index: number) => {
-                Text(`${member.avatar} ${member.name}`)
+                Text(member.name)
                   .fontSize(this.fontSize - 1)
-                  .fontColor(this.selectedMemberIndex === index ? Color.White : '#333333')
-                  .backgroundColor(this.selectedMemberIndex === index ? member.color : '#F5F5F5')
-                  .borderRadius(20)
-                  .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+                  .fontColor(this.selectedMemberIndex === index ? NEUTRAL_INK : NEUTRAL_INK_SECONDARY)
+                  .fontWeight(this.selectedMemberIndex === index ? FontWeight.Bold : FontWeight.Normal)
+                  .padding({ left: 0, right: SPACE_MD, top: 8, bottom: 8 })
+                  .border({ width: { bottom: this.selectedMemberIndex === index ? 2 : 0 }, color: NEUTRAL_INK })
                   .onClick(() => {
                     this.selectedMemberIndex = index as number;
                     this.loadMemberData(member.id);
                   })
-              }, (member: FamilyMember) => member.id)
+              }, (member: FamilyMember) => member.id + '_' + member.updatedAt)
             }
           }
           .scrollable(ScrollDirection.Horizontal)
+          .scrollBar(BarState.Off)
           .width('100%')
-          .padding({ left: 16, right: 16, bottom: 8 })
+          .padding({ left: SPACE_MD, right: SPACE_MD, bottom: 8 })
         }
 
-        // 子Tab
+        // 子Tab — flat underline
         Row() {
           Text('用药提醒')
             .fontSize(this.fontSize + 1)
+            .fontFamily(FONT_FAMILY_SERIF)
             .fontWeight(this.currentTab === 0 ? FontWeight.Bold : FontWeight.Normal)
-            .fontColor(this.currentTab === 0 ? '#1565C0' : '#999999')
+            .fontColor(this.currentTab === 0 ? NEUTRAL_INK : NEUTRAL_INK_SECONDARY)
             .layoutWeight(1).textAlign(TextAlign.Center)
             .padding({ bottom: 8 })
-            .border({ width: { bottom: this.currentTab === 0 ? 2 : 0 }, color: '#1565C0' })
+            .border({ width: { bottom: this.currentTab === 0 ? 2 : 0.5 }, color: this.currentTab === 0 ? NEUTRAL_INK : DIVIDER })
             .onClick(() => { this.currentTab = 0; })
           Text('指标记录')
             .fontSize(this.fontSize + 1)
+            .fontFamily(FONT_FAMILY_SERIF)
             .fontWeight(this.currentTab === 1 ? FontWeight.Bold : FontWeight.Normal)
-            .fontColor(this.currentTab === 1 ? '#1565C0' : '#999999')
+            .fontColor(this.currentTab === 1 ? NEUTRAL_INK : NEUTRAL_INK_SECONDARY)
             .layoutWeight(1).textAlign(TextAlign.Center)
             .padding({ bottom: 8 })
-            .border({ width: { bottom: this.currentTab === 1 ? 2 : 0 }, color: '#1565C0' })
+            .border({ width: { bottom: this.currentTab === 1 ? 2 : 0.5 }, color: this.currentTab === 1 ? NEUTRAL_INK : DIVIDER })
             .onClick(() => { this.currentTab = 1; })
         }
         .width('100%')
-        .padding({ left: 16, right: 16 })
+        .padding({ left: SPACE_MD, right: SPACE_MD })
 
-        Scroll() {
-          if (this.currentTab === 0) {
-            this.MedicationTab()
-          } else {
-            this.MetricsTab()
+        Refresh({ refreshing: $$this.isRefreshing }) {
+          Scroll() {
+            if (this.currentTab === 0) {
+              this.MedicationTab()
+            } else {
+              this.MetricsTab()
+            }
           }
+          .layoutWeight(1)
+          .padding(SPACE_MD)
+          .align(Alignment.TopStart)
+          .edgeEffect(EdgeEffect.Spring)
         }
+        .width('100%')
         .layoutWeight(1)
-        .padding(16)
-        .align(Alignment.TopStart)
+        .onRefreshing(() => { this.handlePullRefresh().catch(() => {}); })
       }
       .width('100%')
       .height('100%')
       .alignItems(HorizontalAlign.Start)
-      .backgroundColor(this.themeLightBg)
+      .backgroundColor(BG_PAPER)
 
       if (this.showAddMedication) {
         this.AddMedicationOverlay()
@@ -272,54 +346,58 @@ struct HealthPage {
         title: '暂无用药提醒',
         subtitle: '为家人添加吃药提醒',
         actionText: '+ 添加用药',
-        buttonColor: this.themePrimary,
+        buttonColor: BRAND_RED,
         onAction: () => {
           this.openAddMedicationDialog();
         }
       })
     } else {
-      Column({ space: 8 }) {
+      Column({ space: 0 }) {
         ForEach(this.medications, (med: Medication) => {
-            ForEach(med.timeSlots, (timeSlot: string) => {
-              const isTaken = this.healthVm.isMedicationTaken(med.id, timeSlot);
-              const isMissed = !isTaken && this.isSlotMissed(timeSlot);
-              Row() {
-                Text(isTaken ? '✅' : (isMissed ? '⚠️' : '💊')).fontSize(22).margin({ right: 10 })
-                Column() {
-                  Text(`${med.medicineName} · ${med.dosage}`)
-                    .fontWeight(FontWeight.Medium).fontSize(17)
-                    .fontColor(isTaken ? '#999999' : (isMissed ? '#C62828' : '#333333'))
-                    .decoration({ type: isTaken ? TextDecorationType.LineThrough : TextDecorationType.None })
-                  Text(`${med.frequency} · ${timeSlot}`)
-                    .fontSize(14).fontColor('#888888').margin({ top: 3 })
-                  if (this.healthVm.isMedicationLate(med.id, timeSlot)) {
-                    Text('补服').fontSize(12).fontColor('#E65100').margin({ top: 2 })
-                  }
-                  if (isMissed) {
-                    Text('可能漏服').fontSize(12).fontColor('#C62828').margin({ top: 2 })
-                  }
+          ForEach(med.timeSlots, (timeSlot: string) => {
+            Row() {
+              // Status indicator — text only, no emoji
+              Text(this.healthVm.isMedicationTaken(med.id, timeSlot) ? '✓' : (this.isMedicationTimeSlotMissed(med.id, timeSlot) ? '!' : '○'))
+                .fontSize(18)
+                .fontColor(this.healthVm.isMedicationTaken(med.id, timeSlot) ? SEMANTIC_SUCCESS : (this.isMedicationTimeSlotMissed(med.id, timeSlot) ? SEMANTIC_ERROR : NEUTRAL_INK_TERTIARY))
+                .margin({ right: 12 })
+
+              Column() {
+                Text(`${med.medicineName} · ${med.dosage}`)
+                  .fontWeight(FontWeight.Medium).fontSize(FONT_BODY_LARGE)
+                  .fontColor(this.healthVm.isMedicationTaken(med.id, timeSlot) ? NEUTRAL_INK_SECONDARY : (this.isMedicationTimeSlotMissed(med.id, timeSlot) ? SEMANTIC_ERROR : NEUTRAL_INK))
+                  .decoration({ type: this.healthVm.isMedicationTaken(med.id, timeSlot) ? TextDecorationType.LineThrough : TextDecorationType.None })
+                Text(`${med.frequency} · ${timeSlot}`)
+                  .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 3 })
+                if (this.recordCreatorLabel(med.creatorId) !== '') {
+                  Text(this.recordCreatorLabel(med.creatorId))
+                    .fontSize(FONT_CAPTION_SM).fontColor(NEUTRAL_INK_TERTIARY).margin({ top: 2 })
+                }
+                if (this.healthVm.isMedicationLate(med.id, timeSlot)) {
+                  Text('补服').fontSize(FONT_CAPTION).fontColor(SEMANTIC_WARNING).margin({ top: 2 })
+                }
+                if (this.isMedicationTimeSlotMissed(med.id, timeSlot)) {
+                  Text('可能漏服').fontSize(FONT_CAPTION).fontColor(SEMANTIC_ERROR).margin({ top: 2 })
+                }
+                if (this.getTakenByName(med.id, timeSlot) !== '') {
+                  Text(this.getTakenByName(med.id, timeSlot))
+                    .fontSize(FONT_CAPTION_SM).fontColor(NEUTRAL_INK_TERTIARY).margin({ top: 2 })
+                }
               }
               .alignItems(HorizontalAlign.Start).layoutWeight(1)
 
-              if (isTaken) {
-                Column() {
-                  Text(this.healthVm.isMedicationLate(med.id, timeSlot) ? '已补服' : '✓ 已服')
-                    .fontSize(14).fontColor('#4CAF50').backgroundColor('#E8F5E9')
-                    .borderRadius(8).padding({ left: 10, right: 10, top: 3, bottom: 3 })
-                  // 显示实际服药人
-                  Text(this.getTakenByName(med.id, timeSlot))
-                    .fontSize(11).fontColor('#999999').margin({ top: 2 })
-                }.alignItems(HorizontalAlign.End)
+              // Right action — text-only, no bg pill
+              if (this.healthVm.isMedicationTaken(med.id, timeSlot)) {
+                Text(this.healthVm.isMedicationLate(med.id, timeSlot) ? '已补服' : '已服')
+                  .fontSize(FONT_BODY).fontColor(SEMANTIC_SUCCESS)
+                  .padding({ left: 8, right: 8, top: 4, bottom: 4 })
               } else if (!this.healthVm.canConfirmMedication(med)) {
-                // 只读模式：既非创建人也非服药人，仅展示状态
-                Text(isMissed ? '⚠ 待补服' : '待服药')
-                  .fontSize(13).fontColor('#999999').backgroundColor('#F0F0F0')
-                  .borderRadius(8).padding({ left: 10, right: 10, top: 4, bottom: 4 })
-              } else if (isMissed) {
-                Button('补服')
-                  .fontSize(15).fontColor('#FFFFFF').backgroundColor('#C62828')
-                  .borderRadius(10).padding({ left: 12, right: 12, top: 5, bottom: 5 })
-                  .type(ButtonType.Normal)
+                Text(this.isMedicationTimeSlotMissed(med.id, timeSlot) ? '待补服' : '待服药')
+                  .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
+              } else if (this.isMedicationTimeSlotMissed(med.id, timeSlot)) {
+                Text('补服')
+                  .fontSize(FONT_BODY).fontColor(SEMANTIC_ERROR)
+                  .padding({ left: 8, right: 8, top: 4, bottom: 4 })
                   .onClick(() => {
                     this.pendingMedId = med.id;
                     this.pendingMedTimeSlot = timeSlot;
@@ -327,10 +405,9 @@ struct HealthPage {
                     this.showMemberPicker = true;
                   })
               } else {
-                Button('服药')
-                  .fontSize(15).fontColor('#FFFFFF').backgroundColor(this.themePrimary)
-                  .borderRadius(10).padding({ left: 12, right: 12, top: 5, bottom: 5 })
-                  .type(ButtonType.Normal)
+                Text('服药')
+                  .fontSize(FONT_BODY).fontColor(BRAND_RED)
+                  .padding({ left: 8, right: 8, top: 4, bottom: 4 })
                   .onClick(() => {
                     this.pendingMedId = med.id;
                     this.pendingMedTimeSlot = timeSlot;
@@ -340,10 +417,9 @@ struct HealthPage {
               }
             }
             .width('100%')
-            .padding({ left: 14, right: 14, top: 12, bottom: 12 })
-            .borderRadius(10)
-            .border({ width: { left: 3 }, color: isTaken ? '#4CAF50' : (isMissed ? '#C62828' : '#FF9800') })
-            .backgroundColor(isTaken ? '#F1F8E1' : (isMissed ? '#FFEBEE' : '#FFF8E1'))
+            .padding({ left: 0, right: 0, top: 14, bottom: 14 })
+            .border({ width: { bottom: 0.5 }, color: DIVIDER })
+            .backgroundColor(BG_PAPER)
             .opacity(this.isMedicationActiveToday(med) ? 1 : 0.5)
             .onClick(() => {
               this.detailMedication = med;
@@ -382,11 +458,11 @@ struct HealthPage {
                 })
             )
           }, (timeSlot: string) => `${med.id}_${timeSlot}`)
-        }, (med: Medication) => med.id)
+        }, (med: Medication) => med.id + '_' + med.updatedAt)
 
         Button('+ 添加用药提醒')
-          .fontSize(16).fontColor(Color.White).backgroundColor(this.themePrimary)
-          .borderRadius(20).width('100%').margin({ top: 12 })
+          .fontSize(FONT_BODY).fontColor(Color.White).backgroundColor(NEUTRAL_INK)
+          .borderRadius(0).width('100%').margin({ top: SPACE_LG })
           .onClick(() => {
             this.openAddMedicationDialog();
           })
@@ -404,7 +480,7 @@ struct HealthPage {
         title: '暂无指标记录',
         subtitle: '记录血压、血糖等健康指标',
         actionText: '+ 记录指标',
-        buttonColor: this.themePrimary,
+        buttonColor: BRAND_RED,
         onAction: () => {
           this.editingMetricId = '';
           this.newMetricType = 'blood_pressure_systolic';
@@ -414,82 +490,79 @@ struct HealthPage {
         }
       })
     } else {
-      Column({ space: 12 }) {
-        // 全局趋势范围切换
+      Column({ space: 0 }) {
+        // 全局趋势范围切换 — text-only toggle
         Row() {
-          Text('📈 指标趋势').fontSize(this.isLargeFont ? 20 : 17).fontWeight(FontWeight.Bold)
-            .fontColor('#333333').layoutWeight(1)
-          Row({ space: 0 }) {
+          Text('指标趋势')
+            .fontSize(FONT_SUBTITLE)
+            .fontFamily(FONT_FAMILY_SERIF)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(NEUTRAL_INK).layoutWeight(1)
+          Row({ space: SPACE_MD }) {
             Text('近7天')
-              .fontSize(this.isLargeFont ? 16 : 14)
-              .fontColor(this.trendRange === 7 ? Color.White : '#666666')
-              .backgroundColor(this.trendRange === 7 ? this.themePrimary : '#F0F0F0')
-              .borderRadius({ topLeft: 8, bottomLeft: 8 })
-              .padding({ left: 14, right: 14, top: 5, bottom: 5 })
+              .fontSize(FONT_CAPTION)
+              .fontColor(this.trendRange === 7 ? NEUTRAL_INK : NEUTRAL_INK_SECONDARY)
+              .fontWeight(this.trendRange === 7 ? FontWeight.Bold : FontWeight.Normal)
               .onClick(() => { this.trendRange = 7; })
             Text('近30天')
-              .fontSize(this.isLargeFont ? 16 : 14)
-              .fontColor(this.trendRange === 30 ? Color.White : '#666666')
-              .backgroundColor(this.trendRange === 30 ? this.themePrimary : '#F0F0F0')
-              .borderRadius({ topRight: 8, bottomRight: 8 })
-              .padding({ left: 14, right: 14, top: 5, bottom: 5 })
+              .fontSize(FONT_CAPTION)
+              .fontColor(this.trendRange === 30 ? NEUTRAL_INK : NEUTRAL_INK_SECONDARY)
+              .fontWeight(this.trendRange === 30 ? FontWeight.Bold : FontWeight.Normal)
               .onClick(() => { this.trendRange = 30; })
           }
         }
         .width('100%')
-        .padding({ bottom: 4 })
+        .padding({ bottom: 8 })
 
-        // 每个指标类型一个集成卡片
+        // 每个指标类型一个 flat 区块
         ForEach(this.getMetricTypes(), (type: string) => {
           Column({ space: 0 }) {
-            // 最新数值区域 - 适老化大字体
+            // 最新数值区域 - serif 数字
             Row() {
               Column() {
                 Text(this.getMetricTypeName(type))
                   .fontSize(this.isLargeFont ? 20 : 18)
                   .fontWeight(FontWeight.Bold)
-                  .fontColor(this.isTypeAbnormal(type) ? '#C62828' : '#333333')
+                  .fontColor(this.isTypeAbnormal(type) ? SEMANTIC_ERROR : NEUTRAL_INK)
                 Text(this.getLatestMetricTime(type))
-                  .fontSize(13).fontColor('#999999').margin({ top: 4 })
+                  .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 4 })
               }
               .alignItems(HorizontalAlign.Start)
               .layoutWeight(1)
 
-              // 大号数值显示
+              // 大号数值显示 — serif
               Text(`${this.getLatestMetricValue(type)}`)
                 .fontSize(this.isLargeFont ? 40 : 36)
                 .fontWeight(FontWeight.Bold)
-                .fontColor(this.isTypeAbnormal(type) ? '#C62828' : this.getChartColor(type))
+                .fontFamily(FONT_FAMILY_SERIF)
+                .fontColor(this.isTypeAbnormal(type) ? SEMANTIC_ERROR : this.getChartColor(type))
               Text(` ${this.getUnitForType(type)}`)
                 .fontSize(this.isLargeFont ? 18 : 16)
-                .fontColor('#888888')
+                .fontColor(NEUTRAL_INK_SECONDARY)
                 .margin({ left: 2 })
 
               if (this.isTypeAbnormal(type)) {
-                Text('⚠ 异常')
-                  .fontSize(this.isLargeFont ? 16 : 14)
-                  .fontColor('#C62828')
-                  .backgroundColor('#FFEBEE')
-                  .borderRadius(8)
-                  .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+                Text('异常')
+                  .fontSize(FONT_CAPTION)
+                  .fontColor(SEMANTIC_ERROR)
                   .margin({ left: 8 })
               }
             }
             .width('100%')
-            .padding({ left: 16, right: 16, top: 16, bottom: 4 })
+            .padding({ left: 0, right: 0, top: 16, bottom: 4 })
 
             // 正常参考值
             Row() {
-              Text('📋 正常范围: ')
-                .fontSize(this.isLargeFont ? 15 : 13)
-                .fontColor('#888888')
+              Text('正常范围: ')
+                .fontSize(FONT_CAPTION)
+                .fontColor(NEUTRAL_INK_SECONDARY)
               Text(this.getNormalRangeText(type))
-                .fontSize(this.isLargeFont ? 15 : 13)
-                .fontColor('#2E7D32')
+                .fontSize(FONT_CAPTION)
+                .fontColor(SEMANTIC_SUCCESS)
                 .fontWeight(FontWeight.Medium)
             }
             .width('100%')
-            .padding({ left: 16, right: 16, top: 2, bottom: 10 })
+            .padding({ left: 0, right: 0, top: 2, bottom: 10 })
 
             // 趋势图
             TrendChart({
@@ -501,40 +574,50 @@ struct HealthPage {
               unit: this.getUnitForType(type)
             })
 
-            // 统计摘要 - 适老化字体
-            Row({ space: 16 }) {
+            // 统计摘要
+            Row({ space: SPACE_LG }) {
               Row() {
-                Text('最高 ').fontSize(13).fontColor('#999999')
-                Text(`${this.getMetricStats(type).max}`).fontSize(14).fontWeight(FontWeight.Medium).fontColor('#C62828')
+                Text('最高 ').fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY)
+                Text(`${this.getMetricStats(type).max}`).fontSize(FONT_BODY).fontWeight(FontWeight.Medium).fontColor(SEMANTIC_ERROR)
               }
               Row() {
-                Text('最低 ').fontSize(13).fontColor('#999999')
-                Text(`${this.getMetricStats(type).min}`).fontSize(14).fontWeight(FontWeight.Medium).fontColor('#2E7D32')
+                Text('最低 ').fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY)
+                Text(`${this.getMetricStats(type).min}`).fontSize(FONT_BODY).fontWeight(FontWeight.Medium).fontColor(SEMANTIC_SUCCESS)
               }
               Row() {
-                Text('均值 ').fontSize(13).fontColor('#999999')
-                Text(`${this.getMetricStats(type).avg}`).fontSize(14).fontWeight(FontWeight.Medium).fontColor('#1565C0')
+                Text('均值 ').fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY)
+                Text(`${this.getMetricStats(type).avg}`).fontSize(FONT_BODY).fontWeight(FontWeight.Medium).fontColor(SEMANTIC_INFO)
               }
             }
             .width('100%')
-            .padding({ left: 16, right: 16, top: 4, bottom: 14 })
+            .padding({ left: 0, right: 0, top: 4, bottom: 14 })
 
-            // 历史记录列表（最近3条）
+            // 历史记录列表（最近3条）— flat with divider
             Column({ space: 0 }) {
               ForEach(this.getRecentMetricsForType(type, 3), (metric: HealthMetric) => {
                 Row() {
-                  Text(metric.measuredAt.slice(5, 16).replace('T', ' '))
-                    .fontSize(this.isLargeFont ? 15 : 13).fontColor('#888888').layoutWeight(1)
+                  Column() {
+                    Text(formatIsoToLocal(metric.measuredAt).slice(5))
+                      .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY)
+                    if (this.recordCreatorLabel(metric.creatorId) !== '') {
+                      Text(this.recordCreatorLabel(metric.creatorId))
+                        .fontSize(FONT_CAPTION_SM).fontColor(NEUTRAL_INK_TERTIARY).margin({ top: 2 })
+                    }
+                  }
+                  .alignItems(HorizontalAlign.Start)
+                  .layoutWeight(1)
                   Text(`${metric.value} ${metric.unit}`)
                     .fontSize(this.isLargeFont ? 17 : 15)
                     .fontWeight(FontWeight.Medium)
-                    .fontColor(this.healthVm.checkAbnormal(metric.metricType, metric.value) ? '#C62828' : '#333333')
+                    .fontFamily(FONT_FAMILY_SERIF)
+                    .fontColor(this.healthVm.checkAbnormal(metric.metricType, metric.value) ? SEMANTIC_ERROR : NEUTRAL_INK)
                   if (this.healthVm.checkAbnormal(metric.metricType, metric.value)) {
-                    Text(' ⚠').fontSize(14).fontColor('#C62828')
+                    Text(' ⚠').fontSize(FONT_CAPTION).fontColor(SEMANTIC_ERROR)
                   }
                 }
                 .width('100%')
-                .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+                .padding({ left: 0, right: 0, top: 10, bottom: 10 })
+                .border({ width: { bottom: 0.5 }, color: DIVIDER })
                 .onClick(() => {
                   this.detailMetric = metric;
                   this.showMetricDetail = true;
@@ -572,19 +655,18 @@ struct HealthPage {
                       }
                     })
                 )
-              }, (metric: HealthMetric) => metric.id)
+              }, (metric: HealthMetric) => metric.id + '_' + metric.updatedAt)
             }
             .width('100%')
           }
           .width('100%')
-          .borderRadius(12)
-          .backgroundColor(Color.White)
-          .shadow({ radius: 2, color: '#0A000000', offsetX: 0, offsetY: 1 })
+          .border({ width: { bottom: 0.5 }, color: DIVIDER })
+          .backgroundColor(BG_PAPER)
         }, (type: string) => type)
 
         Button('+ 记录指标')
-          .fontSize(this.isLargeFont ? 18 : 16).fontColor(Color.White).backgroundColor(this.themePrimary)
-          .borderRadius(20).width('100%').margin({ top: 8 })
+          .fontSize(this.isLargeFont ? 18 : FONT_BODY).fontColor(Color.White).backgroundColor(NEUTRAL_INK)
+          .borderRadius(0).width('100%').margin({ top: SPACE_MD })
           .onClick(() => {
             this.editingMetricId = '';
             this.newMetricType = 'blood_pressure_systolic';
@@ -616,39 +698,42 @@ struct HealthPage {
       Column() {
         Column() {
           Text(this.editingMedId ? '编辑用药提醒' : '添加用药提醒')
-            .fontSize(18).fontWeight(FontWeight.Bold).margin({ bottom: 16 })
+            .fontSize(FONT_TITLE).fontWeight(FontWeight.Bold)
+            .fontFamily(FONT_FAMILY_SERIF)
+            .fontColor(NEUTRAL_INK).margin({ bottom: SPACE_LG })
 
           TextInput({ placeholder: '药品名称（如：氨氯地平）', text: this.newMedName })
-            .width('100%').padding(10).borderRadius(8).margin({ bottom: 8 })
+            .width('100%').padding(10).borderRadius(0).margin({ bottom: 8 })
+            .backgroundColor(BG_SUBTLE)
             .onChange((v: string) => { this.newMedName = v; })
 
           TextInput({ placeholder: '剂量（如：1片）', text: this.newMedDosage })
-            .width('100%').padding(10).borderRadius(8).margin({ bottom: 8 })
+            .width('100%').padding(10).borderRadius(0).margin({ bottom: 8 })
+            .backgroundColor(BG_SUBTLE)
             .onChange((v: string) => { this.newMedDosage = v; })
 
           TextInput({ placeholder: '频率（如：每日一次）', text: this.newMedFrequency })
-            .width('100%').padding(10).borderRadius(8).margin({ bottom: 8 })
+            .width('100%').padding(10).borderRadius(0).margin({ bottom: 8 })
+            .backgroundColor(BG_SUBTLE)
             .onChange((v: string) => { this.newMedFrequency = v; })
 
           // 服药人选择（来自健康模块共享范围）
-          Text('服药人').fontSize(13).fontColor('#666666').width('100%').margin({ bottom: 4 })
+          Text('服药人').fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 4 })
           if (this.shareableMembers.length === 0) {
-            Text('⚠️ 健康模块未共享给任何人，请先在「我的-模块管理」中开启共享')
-              .fontSize(12).fontColor('#C62828').width('100%').margin({ bottom: 8 })
+            Text('健康模块未共享给任何人，请先在「我的-模块管理」中开启共享')
+              .fontSize(FONT_CAPTION).fontColor(SEMANTIC_ERROR).width('100%').margin({ bottom: 8 })
           } else {
             Flex({ wrap: FlexWrap.Wrap }) {
               ForEach(this.shareableMembers, (member: FamilyMember) => {
-                Row() {
-                  Text(member.avatar).fontSize(14).margin({ right: 4 })
-                  Text(member.name).fontSize(13)
-                    .fontColor(this.newMedForMemberId === member.id ? Color.White : '#333333')
-                }
-                .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-                .borderRadius(14)
-                .backgroundColor(this.newMedForMemberId === member.id ? member.color : '#F0F0F0')
-                .margin({ right: 6, bottom: 6 })
-                .onClick(() => { this.newMedForMemberId = member.id; })
-              }, (member: FamilyMember) => member.id)
+                Text(member.name)
+                  .fontSize(FONT_CAPTION)
+                  .fontColor(this.newMedForMemberId === member.id ? Color.White : NEUTRAL_INK)
+                  .backgroundColor(this.newMedForMemberId === member.id ? NEUTRAL_INK : BG_SUBTLE)
+                  .borderRadius(0)
+                  .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+                  .margin({ right: 6, bottom: 6 })
+                  .onClick(() => { this.newMedForMemberId = member.id; })
+              }, (member: FamilyMember) => member.id + '_' + member.updatedAt)
             }
             .width('100%')
             .margin({ bottom: 8 })
@@ -656,12 +741,11 @@ struct HealthPage {
 
           Row() {
             Text(this.newMedStartDate || '选择开始日期')
-              .fontSize(14).fontColor(this.newMedStartDate ? '#333333' : '#999999').layoutWeight(1)
-            Text('🗓️').fontSize(16)
-          }.width('100%').padding(10).borderRadius(8).backgroundColor('#F5F5F5').margin({ bottom: 8 })
+              .fontSize(FONT_BODY).fontColor(this.newMedStartDate ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY).layoutWeight(1)
+          }.width('100%').padding(10).borderRadius(0).backgroundColor(BG_SUBTLE).margin({ bottom: 8 })
           .onClick(() => {
             DatePickerDialog.show({
-              selected: new Date(),
+              selected: this.newMedStartDate ? new Date(this.newMedStartDate) : new Date(),
               onAccept: (value: DatePickerResult) => {
                 const m = (value.month ?? 0) + 1;
                 const d = value.day ?? 1;
@@ -672,12 +756,11 @@ struct HealthPage {
 
           Row() {
             Text(this.newMedEndDate || '选择结束日期（可选）')
-              .fontSize(14).fontColor(this.newMedEndDate ? '#333333' : '#999999').layoutWeight(1)
-            Text('🗓️').fontSize(16)
-          }.width('100%').padding(10).borderRadius(8).backgroundColor('#F5F5F5').margin({ bottom: 8 })
+              .fontSize(FONT_BODY).fontColor(this.newMedEndDate ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY).layoutWeight(1)
+          }.width('100%').padding(10).borderRadius(0).backgroundColor(BG_SUBTLE).margin({ bottom: 8 })
           .onClick(() => {
             DatePickerDialog.show({
-              selected: new Date(),
+              selected: this.newMedEndDate ? new Date(this.newMedEndDate) : new Date(),
               onAccept: (value: DatePickerResult) => {
                 const m = (value.month ?? 0) + 1;
                 const d = value.day ?? 1;
@@ -686,12 +769,12 @@ struct HealthPage {
             })
           })
 
-          Text('服药时间').fontSize(13).fontColor('#666666').width('100%').margin({ bottom: 4 })
+          Text('服药时间').fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 4 })
           Flex({ wrap: FlexWrap.Wrap }) {
             ForEach(this.medTimeSlots, (slot: string, index: number) => {
               Row() {
-                Text(slot).fontSize(13).fontColor(this.themePrimary)
-                Text(' ×').fontSize(14).fontColor('#999999')
+                Text(slot).fontSize(FONT_CAPTION).fontColor(BRAND_RED)
+                Text(' ×').fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY)
                   .onClick(() => {
                     const newSlots: string[] = [];
                     for (let i = 0; i < this.medTimeSlots.length; i++) {
@@ -701,16 +784,16 @@ struct HealthPage {
                   })
               }
               .padding({ left: 10, right: 8, top: 5, bottom: 5 })
-              .borderRadius(14)
-              .backgroundColor(this.themeBorder)
+              .borderRadius(0)
+              .backgroundColor(BG_SUBTLE)
               .margin({ right: 6, bottom: 6 })
             }, (slot: string, index: number) => `${slot}_${index}`)
             Row() {
-              Text('+ 添加时间').fontSize(13).fontColor(this.themePrimary)
+              Text('+ 添加时间').fontSize(FONT_CAPTION).fontColor(BRAND_RED)
             }
             .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-            .borderRadius(14)
-            .border({ width: 1, color: this.themePrimary })
+            .borderRadius(0)
+            .border({ width: 1, color: BRAND_RED })
             .margin({ bottom: 6 })
             .onClick(() => {
               TimePickerDialog.show({
@@ -733,102 +816,107 @@ struct HealthPage {
 
           Row({ space: 12 }) {
             Button('取消')
-              .fontSize(14).fontColor('#666666').backgroundColor('#F0F0F0')
-              .borderRadius(20).layoutWeight(1)
+              .fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY).backgroundColor(BG_PAPER)
+              .borderRadius(0).border({ width: 1, color: DIVIDER }).layoutWeight(1)
               .onClick(() => {
                 this.editingMedId = '';
                 this.showAddMedication = false;
               })
-            Button(this.editingMedId ? '保存' : '添加')
-              .fontSize(14).fontColor(Color.White).backgroundColor(this.themePrimary)
-              .borderRadius(20).layoutWeight(1)
+            Button(this.isSavingMed ? '保存中...' : (this.editingMedId ? '保存' : '添加'))
+              .fontSize(FONT_BODY).fontColor(Color.White).backgroundColor(NEUTRAL_INK)
+              .borderRadius(0).layoutWeight(1)
+              .enabled(!this.isSavingMed)
               .onClick(async () => {
-                if (!this.newMedName) return;
-                if (!this.newMedForMemberId) {
-                  AlertDialog.show({
-                    title: '提示',
-                    message: '请选择服药人',
-                    primaryButton: { value: '确定', action: () => {} }
-                  });
-                  return;
-                }
-                const now = new Date().toISOString();
-                const timeSlots = this.medTimeSlots.length > 0 ? [...this.medTimeSlots] : ['08:00'];
+                if (this.isSavingMed) return; // 防重复提交
+                this.isSavingMed = true;
+                try {
+                  if (!this.newMedName) return;
+                  if (!this.newMedForMemberId) {
+                    AlertDialog.show({
+                      title: '提示',
+                      message: '请选择服药人',
+                      primaryButton: { value: '确定', action: () => {} }
+                    });
+                    return;
+                  }
+                  const now = new Date().toISOString();
+                  const timeSlots = this.medTimeSlots.length > 0 ? [...this.medTimeSlots] : ['08:00'];
 
-                if (this.editingMedId) {
-                  const existing = this.medications.find((m: Medication) => m.id === this.editingMedId);
-                  if (existing) {
-                    const updated: Medication = {
-                      id: existing.id,
-                      familyId: existing.familyId,
-                      creatorId: existing.creatorId,
-                      visibility: existing.visibility,
-                      visibleMembers: [...existing.visibleMembers],
-                      version: existing.version + 1,
-                      createdAt: existing.createdAt,
+                  if (this.editingMedId) {
+                    const existing = this.medications.find((m: Medication) => m.id === this.editingMedId);
+                    if (existing) {
+                      const updated: Medication = {
+                        id: existing.id,
+                        familyId: existing.familyId,
+                        creatorId: existing.creatorId,
+                        visibility: existing.visibility,
+                        visibleMembers: [...existing.visibleMembers],
+                        version: existing.version + 1,
+                        createdAt: existing.createdAt,
+                        updatedAt: now,
+                        forMemberId: this.newMedForMemberId,
+                        medicineName: this.newMedName,
+                        dosage: this.newMedDosage,
+                        frequency: this.newMedFrequency,
+                        timeSlots: timeSlots,
+                        startDate: this.newMedStartDate || existing.startDate,
+                        endDate: this.newMedEndDate || existing.endDate,
+                        isActive: existing.isActive,
+                        note: existing.note
+                      };
+                      await this.db.updateMedication(updated);
+                    }
+                  } else {
+                    const family = this.db.getCurrentFamily();
+                    const vis = this.healthVm.buildVisibilityForNewMedication();
+                    const med: Medication = {
+                      id: generateId('med'),
+                      familyId: family?.id ?? '',
+                      creatorId: this.db.getCurrentMemberId(),
+                      visibility: vis.visibility,
+                      visibleMembers: vis.visibleMembers,
+                      version: 1,
+                      createdAt: now,
                       updatedAt: now,
                       forMemberId: this.newMedForMemberId,
                       medicineName: this.newMedName,
                       dosage: this.newMedDosage,
                       frequency: this.newMedFrequency,
                       timeSlots: timeSlots,
-                      startDate: this.newMedStartDate || existing.startDate,
-                      endDate: this.newMedEndDate || existing.endDate,
-                      isActive: existing.isActive,
-                      note: existing.note
+                      startDate: this.newMedStartDate || now.slice(0, 10),
+                      endDate: this.newMedEndDate || '',
+                      isActive: true,
+                      note: ''
                     };
-                    await this.db.updateMedication(updated);
+                    await this.healthVm.addMedication(med);
                   }
-                } else {
-                  const userId = this.db.getCurrentUserId();
-                  const family = this.db.getCurrentFamily();
-                  const vis = this.healthVm.buildVisibilityForNewMedication();
-                  const med: Medication = {
-                    id: generateId('med'),
-                    familyId: family?.id ?? '',
-                    creatorId: userId,
-                    visibility: vis.visibility,
-                    visibleMembers: vis.visibleMembers,
-                    version: 1,
-                    createdAt: now,
-                    updatedAt: now,
-                    forMemberId: this.newMedForMemberId,
-                    medicineName: this.newMedName,
-                    dosage: this.newMedDosage,
-                    frequency: this.newMedFrequency,
-                    timeSlots: timeSlots,
-                    startDate: this.newMedStartDate || now.slice(0, 10),
-                    endDate: this.newMedEndDate || '',
-                    isActive: true,
-                    note: ''
-                  };
-                  await this.healthVm.addMedication(med);
+                  this.editingMedId = '';
+                  this.showAddMedication = false;
+                  this.newMedName = '';
+                  this.newMedDosage = '';
+                  this.newMedFrequency = '';
+                  this.newMedStartDate = '';
+                  this.newMedEndDate = '';
+                  this.medTimeSlots = [];
+                  this.newMedForMemberId = '';
+                  const reloadMemberId = this.familyMembers.length > 0 ?
+                    this.familyMembers[this.selectedMemberIndex].id : '';
+                  this.loadMemberData(reloadMemberId);
+                } finally {
+                  this.isSavingMed = false;
                 }
-                this.editingMedId = '';
-                this.showAddMedication = false;
-                this.newMedName = '';
-                this.newMedDosage = '';
-                this.newMedFrequency = '';
-                this.newMedStartDate = '';
-                this.newMedEndDate = '';
-                this.medTimeSlots = [];
-                this.newMedForMemberId = '';
-                const reloadMemberId = this.familyMembers.length > 0 ?
-                  this.familyMembers[this.selectedMemberIndex].id : '';
-                this.loadMemberData(reloadMemberId);
               })
           }
         }
-        .width('90%')
+        .width('92%')
         .padding(20)
-        .borderRadius(16)
-        .backgroundColor(Color.White)
-        .shadow({ radius: 20, color: '#33000000', offsetX: 0, offsetY: 10 })
+        .borderRadius(0)
+        .backgroundColor(BG_CARD)
         .onClick(() => {})
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#66000000')
+      .backgroundColor('#80000000')
       .justifyContent(FlexAlign.Center)
       .onClick(() => {
         this.editingMedId = '';
@@ -843,15 +931,17 @@ struct HealthPage {
       Column() {
         Column() {
           Text(this.editingMetricId ? '更新指标数值' : '记录健康指标')
-            .fontSize(this.isLargeFont ? 20 : 18).fontWeight(FontWeight.Bold).margin({ bottom: 16 })
+            .fontSize(this.isLargeFont ? 20 : FONT_TITLE).fontWeight(FontWeight.Bold)
+            .fontFamily(FONT_FAMILY_SERIF)
+            .fontColor(NEUTRAL_INK).margin({ bottom: SPACE_LG })
 
           Flex({ wrap: FlexWrap.Wrap }) {
             ForEach(this.metricTypeOptions, (item: MetricTypeOption) => {
               Text(item.label)
-                .fontSize(this.isLargeFont ? 16 : 14)
-                .fontColor(this.newMetricType === item.type ? Color.White : '#666666')
-                .backgroundColor(this.newMetricType === item.type ? this.themePrimary : '#F5F5F5')
-                .borderRadius(12)
+                .fontSize(this.isLargeFont ? 16 : FONT_BODY)
+                .fontColor(this.newMetricType === item.type ? Color.White : NEUTRAL_INK_SECONDARY)
+                .backgroundColor(this.newMetricType === item.type ? NEUTRAL_INK : BG_SUBTLE)
+                .borderRadius(0)
                 .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                 .margin(4)
                 .onClick(() => {
@@ -863,92 +953,100 @@ struct HealthPage {
           .margin({ bottom: 12 })
 
           TextInput({ placeholder: '数值', text: this.newMetricValue })
-            .width('100%').padding(10).borderRadius(8).margin({ bottom: 12 })
-            .fontSize(this.isLargeFont ? 18 : 16)
-            .type(InputType.Number)
+            .width('100%').padding(10).borderRadius(0).margin({ bottom: 12 })
+            .backgroundColor(BG_SUBTLE)
+            .fontSize(this.isLargeFont ? 18 : FONT_BODY_LARGE)
+            .type(InputType.Normal)
+            .inputFilter('^\\d*\\.?\\d{0,2}$', (_value: string) => {})
             .onChange((v: string) => { this.newMetricValue = v; })
 
           Row({ space: 12 }) {
             Button('取消')
-              .fontSize(14).fontColor('#666666').backgroundColor('#F0F0F0')
-              .borderRadius(20).layoutWeight(1)
+              .fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY).backgroundColor(BG_PAPER)
+              .borderRadius(0).border({ width: 1, color: DIVIDER }).layoutWeight(1)
               .onClick(() => {
                 this.editingMetricId = '';
                 this.showAddMetric = false;
               })
-            Button(this.editingMetricId ? '保存' : '添加')
-              .fontSize(14).fontColor(Color.White).backgroundColor(this.themePrimary)
-              .borderRadius(20).layoutWeight(1)
+            Button(this.isSavingMetric ? '保存中...' : (this.editingMetricId ? '保存' : '添加'))
+              .fontSize(FONT_BODY).fontColor(Color.White).backgroundColor(NEUTRAL_INK)
+              .borderRadius(0).layoutWeight(1)
+              .enabled(!this.isSavingMetric)
               .onClick(async () => {
-                if (!this.newMetricValue) return;
-                const value = parseFloat(this.newMetricValue);
-                if (isNaN(value)) return;
-                const now = new Date().toISOString();
-                const memberId = this.familyMembers.length > 0 ?
-                  this.familyMembers[this.selectedMemberIndex].id : '';
+                if (this.isSavingMetric) return; // 防重复提交
+                this.isSavingMetric = true;
+                try {
+                  if (!this.newMetricValue) return;
+                  const value = parseFloat(this.newMetricValue);
+                  if (isNaN(value)) return;
+                  const now = new Date().toISOString();
+                  const memberId = this.familyMembers.length > 0 ?
+                    this.familyMembers[this.selectedMemberIndex].id : '';
 
-                if (this.editingMetricId) {
-                  // 编辑指标时，创建一条新记录（保留历史数据）
-                  const existing = this.metrics.find((m: HealthMetric) => m.id === this.editingMetricId);
-                  const userId = this.db.getCurrentUserId();
-                  const family = this.db.getCurrentFamily();
-                  const newMetric: HealthMetric = {
-                    id: generateId('hm'),
-                    familyId: existing?.familyId ?? family?.id ?? '',
-                    creatorId: existing?.creatorId ?? userId,
-                    visibility: existing?.visibility ?? Visibility.FAMILY,
-                    visibleMembers: existing?.visibleMembers ? [...existing.visibleMembers] : [],
-                    version: 1,
-                    createdAt: now,
-                    updatedAt: now,
-                    forMemberId: existing?.forMemberId ?? memberId,
-                    metricType: this.newMetricType,
-                    value: value,
-                    unit: this.newMetricUnit,
-                    measuredAt: now,
-                    isAbnormal: this.healthVm.checkAbnormal(this.newMetricType, value),
-                    note: ''
-                  };
-                  await this.healthVm.addMetric(newMetric);
-                } else {
-                  const userId = this.db.getCurrentUserId();
-                  const family = this.db.getCurrentFamily();
-                  const metric: HealthMetric = {
-                    id: generateId('hm'),
-                    familyId: family?.id ?? '',
-                    creatorId: userId,
-                    visibility: Visibility.FAMILY,
-                    visibleMembers: [],
-                    version: 1,
-                    createdAt: now,
-                    updatedAt: now,
-                    forMemberId: memberId,
-                    metricType: this.newMetricType,
-                    value: value,
-                    unit: this.newMetricUnit,
-                    measuredAt: now,
-                    isAbnormal: this.healthVm.checkAbnormal(this.newMetricType, value),
-                    note: ''
-                  };
-                  await this.healthVm.addMetric(metric);
+                  if (this.editingMetricId) {
+                    // 编辑指标时，创建一条新记录（保留历史数据）
+                    const existing = this.metrics.find((m: HealthMetric) => m.id === this.editingMetricId);
+                    const memberId = this.db.getCurrentMemberId();
+                    const family = this.db.getCurrentFamily();
+                    const newMetric: HealthMetric = {
+                      id: generateId('hm'),
+                      familyId: existing?.familyId ?? family?.id ?? '',
+                      creatorId: existing?.creatorId ?? memberId,
+                      visibility: existing?.visibility ?? Visibility.FAMILY,
+                      visibleMembers: existing?.visibleMembers ? [...existing.visibleMembers] : [],
+                      version: 1,
+                      createdAt: now,
+                      updatedAt: now,
+                      forMemberId: existing?.forMemberId ?? memberId,
+                      metricType: this.newMetricType,
+                      value: value,
+                      unit: this.newMetricUnit,
+                      measuredAt: now,
+                      isAbnormal: this.healthVm.checkAbnormal(this.newMetricType, value),
+                      note: ''
+                    };
+                    await this.healthVm.addMetric(newMetric);
+                  } else {
+                    const family = this.db.getCurrentFamily();
+                    const vis = this.db.resolveModuleVisibilityForRecord(ModuleId.HEALTH);
+                    const metric: HealthMetric = {
+                      id: generateId('hm'),
+                      familyId: family?.id ?? '',
+                      creatorId: this.db.getCurrentMemberId(),
+                      visibility: vis.visibility,
+                      visibleMembers: vis.visibleMembers,
+                      version: 1,
+                      createdAt: now,
+                      updatedAt: now,
+                      forMemberId: memberId,
+                      metricType: this.newMetricType,
+                      value: value,
+                      unit: this.newMetricUnit,
+                      measuredAt: now,
+                      isAbnormal: this.healthVm.checkAbnormal(this.newMetricType, value),
+                      note: ''
+                    };
+                    await this.healthVm.addMetric(metric);
+                  }
+                  this.editingMetricId = '';
+                  this.showAddMetric = false;
+                  this.newMetricValue = '';
+                  this.loadMemberData(memberId);
+                } finally {
+                  this.isSavingMetric = false;
                 }
-                this.editingMetricId = '';
-                this.showAddMetric = false;
-                this.newMetricValue = '';
-                this.loadMemberData(memberId);
               })
           }
         }
-        .width('90%')
+        .width('92%')
         .padding(20)
-        .borderRadius(16)
-        .backgroundColor(Color.White)
-        .shadow({ radius: 20, color: '#33000000', offsetX: 0, offsetY: 10 })
+        .borderRadius(0)
+        .backgroundColor(BG_CARD)
         .onClick(() => {})
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#66000000')
+      .backgroundColor('#80000000')
       .justifyContent(FlexAlign.Center)
       .onClick(() => {
         this.editingMetricId = '';
@@ -963,16 +1061,21 @@ struct HealthPage {
     Column() {
       Column() {
         Row() {
-          Text('💊 用药详情').fontSize(18).fontWeight(FontWeight.Bold).layoutWeight(1)
-          Text('✕').fontSize(18).fontColor('#999999').onClick(() => {
+          Text('用药详情')
+            .fontSize(FONT_TITLE).fontWeight(FontWeight.Bold)
+            .fontFamily(FONT_FAMILY_SERIF)
+            .fontColor(NEUTRAL_INK).layoutWeight(1)
+          Text('✕').fontSize(18).fontColor(NEUTRAL_INK_SECONDARY).onClick(() => {
             this.showMedicationDetail = false;
             this.detailMedication = null;
           })
-        }.width('100%').margin({ bottom: 16 })
+        }.width('100%').margin({ bottom: SPACE_LG })
 
         if (this.detailMedication) {
           Text(this.detailMedication.medicineName)
-            .fontSize(20).fontWeight(FontWeight.Bold).fontColor('#333333')
+            .fontSize(22).fontWeight(FontWeight.Bold)
+            .fontFamily(FONT_FAMILY_SERIF)
+            .fontColor(NEUTRAL_INK)
             .width('100%').margin({ bottom: 12 })
 
           Column({ space: 10 }) {
@@ -990,14 +1093,14 @@ struct HealthPage {
           }
           .width('100%')
           .padding(14)
-          .borderRadius(10)
-          .backgroundColor('#F8F8F8')
-          .margin({ bottom: 16 })
+          .borderRadius(0)
+          .backgroundColor(BG_SUBTLE)
+          .margin({ bottom: SPACE_LG })
 
           Row({ space: 12 }) {
             Button('关闭')
-              .fontSize(14).fontColor('#666666').backgroundColor('#F0F0F0')
-              .borderRadius(20).layoutWeight(1)
+              .fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY).backgroundColor(BG_PAPER)
+              .borderRadius(0).border({ width: 1, color: DIVIDER }).layoutWeight(1)
               .onClick(() => {
                 this.showMedicationDetail = false;
                 this.detailMedication = null;
@@ -1005,8 +1108,8 @@ struct HealthPage {
 
             if (this.isCreator(this.detailMedication.creatorId)) {
               Button('编辑')
-                .fontSize(14).fontColor(Color.White).backgroundColor(this.themePrimary)
-                .borderRadius(20).layoutWeight(1)
+                .fontSize(FONT_BODY).fontColor(Color.White).backgroundColor(NEUTRAL_INK)
+                .borderRadius(0).layoutWeight(1)
                 .onClick(() => {
                   const med = this.detailMedication!;
                   this.editingMedId = med.id;
@@ -1034,16 +1137,15 @@ struct HealthPage {
           .width('100%')
         }
       }
-      .width('90%')
+      .width('92%')
       .padding(20)
-      .borderRadius(16)
-      .backgroundColor(Color.White)
-      .shadow({ radius: 20, color: '#33000000', offsetX: 0, offsetY: 10 })
+      .borderRadius(0)
+      .backgroundColor(BG_CARD)
       .onClick(() => {})
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#66000000')
+    .backgroundColor('#80000000')
     .justifyContent(FlexAlign.Center)
     .onClick(() => {
       this.showMedicationDetail = false;
@@ -1057,38 +1159,43 @@ struct HealthPage {
     Column() {
       Column() {
         Row() {
-          Text('📊 指标详情').fontSize(18).fontWeight(FontWeight.Bold).layoutWeight(1)
-          Text('✕').fontSize(18).fontColor('#999999').onClick(() => {
+          Text('指标详情')
+            .fontSize(FONT_TITLE).fontWeight(FontWeight.Bold)
+            .fontFamily(FONT_FAMILY_SERIF)
+            .fontColor(NEUTRAL_INK).layoutWeight(1)
+          Text('✕').fontSize(18).fontColor(NEUTRAL_INK_SECONDARY).onClick(() => {
             this.showMetricDetail = false;
             this.detailMetric = null;
           })
-        }.width('100%').margin({ bottom: 16 })
+        }.width('100%').margin({ bottom: SPACE_LG })
 
         if (this.detailMetric) {
           Text(`${this.detailMetric.value} ${this.detailMetric.unit}`)
             .fontSize(32).fontWeight(FontWeight.Bold)
-            .fontColor(this.healthVm.checkAbnormal(this.detailMetric.metricType, this.detailMetric.value) ? '#C62828' : '#333333')
+            .fontFamily(FONT_FAMILY_SERIF)
+            .fontColor(this.healthVm.checkAbnormal(this.detailMetric.metricType, this.detailMetric.value) ? SEMANTIC_ERROR : NEUTRAL_INK)
             .width('100%').textAlign(TextAlign.Center).margin({ bottom: 8 })
 
           if (this.healthVm.checkAbnormal(this.detailMetric.metricType, this.detailMetric.value)) {
-            Text('⚠️ 异常').fontSize(14).fontColor('#C62828').backgroundColor('#FFEBEE')
-              .borderRadius(8).padding({ left: 8, right: 8, top: 3, bottom: 3 }).margin({ bottom: 8 })
+            Text('异常')
+              .fontSize(FONT_CAPTION).fontColor(SEMANTIC_ERROR)
+              .margin({ bottom: 8 })
           }
 
           Column({ space: 10 }) {
             this.DetailRow('类型', this.getMetricTypeName(this.detailMetric.metricType))
-            this.DetailRow('测量时间', this.detailMetric.measuredAt.slice(0, 16).replace('T', ' '))
+            this.DetailRow('测量时间', formatIsoToLocal(this.detailMetric.measuredAt))
           }
           .width('100%')
           .padding(14)
-          .borderRadius(10)
-          .backgroundColor('#F8F8F8')
-          .margin({ bottom: 16 })
+          .borderRadius(0)
+          .backgroundColor(BG_SUBTLE)
+          .margin({ bottom: SPACE_LG })
 
           Row({ space: 12 }) {
             Button('关闭')
-              .fontSize(14).fontColor('#666666').backgroundColor('#F0F0F0')
-              .borderRadius(20).layoutWeight(1)
+              .fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY).backgroundColor(BG_PAPER)
+              .borderRadius(0).border({ width: 1, color: DIVIDER }).layoutWeight(1)
               .onClick(() => {
                 this.showMetricDetail = false;
                 this.detailMetric = null;
@@ -1096,8 +1203,8 @@ struct HealthPage {
 
             if (this.isCreator(this.detailMetric.creatorId)) {
               Button('编辑')
-                .fontSize(14).fontColor(Color.White).backgroundColor(this.themePrimary)
-                .borderRadius(20).layoutWeight(1)
+                .fontSize(FONT_BODY).fontColor(Color.White).backgroundColor(NEUTRAL_INK)
+                .borderRadius(0).layoutWeight(1)
                 .onClick(() => {
                   const metric = this.detailMetric!;
                   this.editingMetricId = metric.id;
@@ -1113,16 +1220,15 @@ struct HealthPage {
           .width('100%')
         }
       }
-      .width('90%')
+      .width('92%')
       .padding(20)
-      .borderRadius(16)
-      .backgroundColor(Color.White)
-      .shadow({ radius: 20, color: '#33000000', offsetX: 0, offsetY: 10 })
+      .borderRadius(0)
+      .backgroundColor(BG_CARD)
       .onClick(() => {})
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#66000000')
+    .backgroundColor('#80000000')
     .justifyContent(FlexAlign.Center)
     .onClick(() => {
       this.showMetricDetail = false;
@@ -1135,28 +1241,26 @@ struct HealthPage {
     Column() {
       Column() {
         Text('谁服了药？')
-          .fontSize(18).fontWeight(FontWeight.Bold).margin({ bottom: 4 })
+          .fontSize(FONT_TITLE).fontWeight(FontWeight.Bold)
+          .fontFamily(FONT_FAMILY_SERIF)
+          .fontColor(NEUTRAL_INK).margin({ bottom: 4 })
         Text(this.getPendingMedDisplay())
-          .fontSize(14).fontColor('#666666').margin({ bottom: 12 })
+          .fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 12 })
 
         // 一键按默认服药人确认
         if (this.defaultMemberId) {
           ForEach(this.familyMembers.filter((member: FamilyMember) => member.id === this.defaultMemberId), (defaultMember: FamilyMember) => {
             Row() {
-              Text(defaultMember.avatar).fontSize(22).margin({ right: 10 })
               Column() {
                 Row() {
                   Text(defaultMember.name)
-                    .fontSize(17).fontWeight(FontWeight.Bold).fontColor(Color.White)
+                    .fontSize(FONT_BODY_LARGE).fontWeight(FontWeight.Bold).fontColor(Color.White)
                   Text(' 默认')
-                    .fontSize(11).fontColor(this.themePrimary)
-                    .backgroundColor('#FFFFFF')
-                    .borderRadius(6)
-                    .padding({ left: 6, right: 6, top: 1, bottom: 1 })
+                    .fontSize(FONT_CAPTION_SM).fontColor(Color.White)
                     .margin({ left: 6 })
                 }
                 Text('该用药的服药人，点这里直接确认')
-                  .fontSize(12).fontColor('#FFEDE5').margin({ top: 2 })
+                  .fontSize(FONT_CAPTION).fontColor(Color.White).opacity(0.8).margin({ top: 2 })
               }
               .alignItems(HorizontalAlign.Start)
               .layoutWeight(1)
@@ -1164,8 +1268,8 @@ struct HealthPage {
             }
             .width('100%')
             .padding(14)
-            .borderRadius(10)
-            .backgroundColor(this.themePrimary)
+            .borderRadius(0)
+            .backgroundColor(NEUTRAL_INK)
             .margin({ bottom: 12 })
             .hitTestBehavior(HitTestMode.Block)
             .onClick(async () => {
@@ -1178,31 +1282,31 @@ struct HealthPage {
               this.loadMemberData(this.familyMembers.length > 0 ?
                 this.familyMembers[this.selectedMemberIndex].id : '');
             })
-          }, (defaultMember: FamilyMember) => defaultMember.id)
+          }, (defaultMember: FamilyMember) => defaultMember.id + '_' + defaultMember.updatedAt)
         }
 
         if (this.familyMembers.length > 1) {
           Text('或选择其他人')
-            .fontSize(12).fontColor('#999999').margin({ bottom: 8 })
+            .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY).margin({ bottom: 8 })
         }
 
-        ForEach(this.familyMembers.filter((member: FamilyMember) => member.id !== this.defaultMemberId), (member: FamilyMember) => {
+        ForEach(this.getOtherMedicationMembers(), (member: FamilyMember) => {
           Row() {
-            Text(member.avatar).fontSize(20).margin({ right: 10 })
             Column() {
               Text(member.name)
-                .fontSize(16).fontWeight(FontWeight.Medium).fontColor('#333333')
+                .fontSize(FONT_BODY).fontWeight(FontWeight.Medium).fontColor(NEUTRAL_INK)
               Text('点击确认是此人所服')
-                .fontSize(12).fontColor('#999999').margin({ top: 2 })
+                .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 2 })
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
           }
           .width('100%')
           .padding(14)
-          .borderRadius(10)
-          .backgroundColor('#F5F5F5')
-          .margin({ bottom: 8 })
+          .borderRadius(0)
+          .backgroundColor(BG_SUBTLE)
+          .border({ width: { bottom: 0.5 }, color: DIVIDER })
+          .margin({ bottom: 0 })
           .hitTestBehavior(HitTestMode.Block)
           .onClick(async () => {
             await this.healthVm.confirmTaken(this.pendingMedId, this.pendingMedTimeSlot, member.id);
@@ -1214,11 +1318,11 @@ struct HealthPage {
             this.loadMemberData(this.familyMembers.length > 0 ?
               this.familyMembers[this.selectedMemberIndex].id : '');
           })
-        })
+        }, (member: FamilyMember) => member.id + '_' + member.updatedAt)
 
         Button('取消')
-          .fontSize(14).fontColor('#666666').backgroundColor('#F0F0F0')
-          .borderRadius(20).width('100%').margin({ top: 4 })
+          .fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY).backgroundColor(BG_PAPER)
+          .borderRadius(0).border({ width: 1, color: DIVIDER }).width('100%').margin({ top: 4 })
           .onClick(() => {
             this.showMemberPicker = false;
             this.pendingMedId = '';
@@ -1226,16 +1330,15 @@ struct HealthPage {
             this.defaultMemberId = '';
           })
       }
-      .width('85%')
+      .width('88%')
       .padding(20)
-      .borderRadius(16)
-      .backgroundColor(Color.White)
-      .shadow({ radius: 20, color: '#33000000', offsetX: 0, offsetY: 10 })
+      .borderRadius(0)
+      .backgroundColor(BG_CARD)
       .onClick(() => {})
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#66000000')
+    .backgroundColor('#80000000')
     .justifyContent(FlexAlign.Center)
     .onClick(() => {
       this.showMemberPicker = false;
@@ -1248,8 +1351,8 @@ struct HealthPage {
   @Builder
   DetailRow(label: string, value: string) {
     Row() {
-      Text(label).fontSize(14).fontColor('#999999').width(72)
-      Text(value).fontSize(14).fontColor('#333333').layoutWeight(1)
+      Text(label).fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY).width(72)
+      Text(value).fontSize(FONT_BODY).fontColor(NEUTRAL_INK).layoutWeight(1)
     }
     .width('100%')
   }
@@ -1268,6 +1371,13 @@ struct HealthPage {
     const all = this.db.getMembersByFamilyId(this.db.getCurrentFamilyId());
     const m = all.find(mm => mm.userId === creatorUserId);
     return m ? `${m.avatar} ${m.name}` : '其他家人';
+  }
+
+  /** 记录「创建人」标签：本人创建的记录不标注；他人记录显示「头像 昵称」，成员已离开则显示「家人」 */
+  private recordCreatorLabel(creatorId: string): string {
+    if (!creatorId || this.isCreator(creatorId)) return '';
+    // familyMembers 仅含「有用药的成员」，创建者本人未必在其中，故用全量家庭名单解析
+    return creatorDisplayLabel(creatorId, this.db.getMembersByFamilyId(this.db.getCurrentFamilyId()));
   }
 
   private getUnitForType(type: string): string {
@@ -1305,14 +1415,14 @@ struct HealthPage {
 
   private getChartColor(type: string): string {
     const map: Record<string, string> = {
-      'blood_pressure_systolic': '#C62828',
-      'blood_pressure_diastolic': '#E65100',
-      'blood_sugar': '#6A1B9A',
-      'body_temp': '#1565C0',
-      'heart_rate': '#2E7D32',
-      'weight': '#4E342E'
+      'blood_pressure_systolic': SEMANTIC_ERROR,
+      'blood_pressure_diastolic': SEMANTIC_WARNING,
+      'blood_sugar': MIST_PURPLE,
+      'body_temp': SEMANTIC_INFO,
+      'heart_rate': SEMANTIC_SUCCESS,
+      'weight': NEUTRAL_INK_TERTIARY
     };
-    return map[type] ?? '#1565C0';
+    return map[type] ?? SEMANTIC_INFO;
   }
 
   private getAbnormalHigh(type: string): number {
@@ -1367,7 +1477,7 @@ struct HealthPage {
   /** 获取某指标类型最新测量时间 */
   private getLatestMetricTime(type: string): string {
     const latest = this.getLatestMetricForType(type);
-    return latest ? latest.measuredAt.slice(0, 16).replace('T', ' ') : '';
+    return latest ? formatIsoToLocal(latest.measuredAt) : '';
   }
 
   /** 判断某指标类型最新值是否异常 */

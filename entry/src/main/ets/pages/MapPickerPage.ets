@@ -1,5 +1,6 @@
 /**
  * 卡宝Home - 地图选点页面
+ * 方向 C · 极简编辑：纸白底 + 墨黑衬线标题 + flat 控件 + SVG 图标
  *
  * 使用华为 Map Kit 的 MapComponent 让用户在地图上点击选取位置，
  * 同时支持关键字搜索（site.searchByText）跳转到目标地点。
@@ -9,24 +10,19 @@
  *   - kabao_picked_lon (number)
  *   - kabao_picked_address (string)
  *   - kabao_picked_token (string)  // 调用方在打开前生成 token，回来后校验，避免读到旧值
- *
- * 调用方使用示例：
- *   const token = generateId('pick');
- *   AppStorage.SetOrCreate('kabao_picked_token_request', token);
- *   router.pushUrl({
- *     url: 'pages/MapPickerPage',
- *     params: { initLat: 31.984, initLon: 118.766, token } as Record<string, Object>
- *   });
- *   // 在 onPageShow 中读取 AppStorage 中 kabao_picked_token 是否等于 token
  */
 import { map, mapCommon, MapComponent, site } from '@kit.MapKit';
 import { AsyncCallback, BusinessError } from '@kit.BasicServicesKit';
 import { geoLocationManager } from '@kit.LocationKit';
 import { abilityAccessCtrl, common } from '@kit.AbilityKit';
-import { router } from '@kit.ArkUI';
-import { promptAction } from '@kit.ArkUI';
-import { THEME_PALETTES } from '../common/Constants';
-import { LocalDbService } from '../service/LocalDbService';
+import { promptAction, router } from '@kit.ArkUI';
+import { PAGE_TRANSITION_DURATION } from '../common/Constants';
+import {
+  BG_PAPER, BG_CARD, BG_SUBTLE, DIVIDER,
+  NEUTRAL_INK, NEUTRAL_INK_SECONDARY, NEUTRAL_INK_TERTIARY,
+  BRAND_RED, FONT_BODY, FONT_BODY_LARGE, FONT_CAPTION, FONT_CAPTION_SM,
+  FONT_TITLE, FONT_FAMILY_SERIF, SPACE_MD
+} from '../common/DesignTokens';
 
 interface SearchHit {
   name: string;
@@ -48,23 +44,14 @@ struct MapPickerPage {
   @State mapReady: boolean = false;
   @State mapErrorMessage: string = '';
   @State titleText: string = '选择地点';
-  @State themePrimary: string = '#E8654A';
-  @State themeLightBg: string = '#FFF5F0';
-  @State themeBorder: string = '#FFD4C2';
 
   private token: string = '';
   private mapOptions?: mapCommon.MapOptions;
   private mapController?: map.MapComponentController;
   private mapEventManager?: map.MapEventManager;
   private mapCallback?: AsyncCallback<map.MapComponentController>;
-  private db: LocalDbService = LocalDbService.getInstance();
 
   aboutToAppear(): void {
-    const palette = THEME_PALETTES.find(p => p.id === this.db.getThemeColor()) ?? THEME_PALETTES[0];
-    this.themePrimary = palette.primary;
-    this.themeLightBg = palette.lightBg;
-    this.themeBorder = palette.border;
-
     const params = router.getParams() as Record<string, Object> | undefined;
     let initLat: number = 39.908823; // 默认天安门
     let initLon: number = 116.397470;
@@ -110,23 +97,19 @@ struct MapPickerPage {
       this.mapEventManager = controller.getEventManager();
       this.mapReady = true;
       try {
-        // 显示我的位置图层（如果有权限）
         controller.setMyLocationEnabled(true);
       } catch (e) {
         // 忽略，权限未给时不显示
       }
-      // 监听地图点击 → 更新选中点
       this.mapEventManager?.on('mapClick', (position: mapCommon.LatLng) => {
         this.updatePickedLocation(position.latitude, position.longitude, true);
       });
-      // 监听相机移动结束 → 把"中心点"作为选中点（拖动方式选点）
       this.mapEventManager?.on('cameraIdle', () => {
         const cam: mapCommon.CameraPosition | undefined = this.mapController?.getCameraPosition();
         if (cam && cam.target) {
           this.updatePickedLocation(cam.target.latitude, cam.target.longitude, false);
         }
       });
-      // 触发一次逆地理编码显示初始地址
       this.reverseGeocodeAndShow(initLat, initLon);
     };
   }
@@ -270,93 +253,106 @@ struct MapPickerPage {
     router.back();
   }
 
+  pageTransition(): void {
+    PageTransitionEnter({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).slide(SlideEffect.Bottom)
+    PageTransitionExit({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).slide(SlideEffect.Bottom)
+  }
+
   build() {
     Stack() {
       Column() {
-        // 标题栏
+        // ── 标题栏 ── flat, bottom divider ──
         Row() {
-          Row() {
-            Text('<').fontSize(22).fontWeight(FontWeight.Bold).fontColor(this.themePrimary)
-          }
-          .width(34).height(34).borderRadius(17).backgroundColor(this.themeBorder)
-          .justifyContent(FlexAlign.Center)
-          .onClick(() => { router.back(); })
+          Image($r('app.media.icon_back'))
+            .width(24).height(24)
+            .fillColor(NEUTRAL_INK)
+            .onClick(() => { router.back(); })
 
           Text(this.titleText)
-            .fontSize(18).fontWeight(FontWeight.Bold).layoutWeight(1).textAlign(TextAlign.Center)
+            .fontSize(FONT_TITLE)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(NEUTRAL_INK)
+            .fontFamily(FONT_FAMILY_SERIF)
+            .layoutWeight(1)
+            .textAlign(TextAlign.Center)
 
-          Row() {
-            Text('确定').fontSize(14).fontColor(Color.White)
-          }
-          .padding({ left: 14, right: 14, top: 7, bottom: 7 })
-          .borderRadius(16)
-          .backgroundColor(this.themePrimary)
-          .onClick(() => { this.confirmPick(); })
+          Text('确定')
+            .fontSize(FONT_BODY)
+            .fontColor(BRAND_RED)
+            .onClick(() => { this.confirmPick(); })
         }
         .width('100%')
-        .padding({ left: 16, right: 16, top: 12, bottom: 8 })
-        .backgroundColor(Color.White)
+        .padding({ left: SPACE_MD, right: SPACE_MD, top: 12, bottom: 8 })
+        .backgroundColor(BG_CARD)
+        .border({ width: { bottom: 0.5 }, color: DIVIDER })
 
-        // 搜索栏
+        // ── 搜索栏 ── flat input + text-only action ──
         Row({ space: 8 }) {
           TextInput({ text: this.searchKeyword, placeholder: '搜索学校、小区、地标...' })
             .layoutWeight(1)
             .height(40)
-            .fontSize(15)
-            .backgroundColor('#F5F5F5')
-            .borderRadius(20)
+            .fontSize(FONT_BODY)
+            .backgroundColor(BG_SUBTLE)
+            .borderRadius(0)
             .padding({ left: 14, right: 14 })
             .onChange((v: string) => { this.searchKeyword = v; })
             .onSubmit(() => { this.runSearch(); })
-          Row() {
-            Text(this.isSearching ? '搜索中' : '搜索')
-              .fontSize(14).fontColor(Color.White)
-          }
-          .padding({ left: 14, right: 14, top: 8, bottom: 8 })
-          .borderRadius(20)
-          .backgroundColor(this.themePrimary)
-          .onClick(() => { this.runSearch(); })
+
+          Text(this.isSearching ? '搜索中' : '搜索')
+            .fontSize(FONT_BODY)
+            .fontColor(this.isSearching ? NEUTRAL_INK_TERTIARY : BRAND_RED)
+            .onClick(() => { this.runSearch(); })
         }
         .width('100%')
         .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-        .backgroundColor(Color.White)
+        .backgroundColor(BG_CARD)
 
-        // 地图区域
+        // ── 地图区域 ──
         Stack({ alignContent: Alignment.Center }) {
           if (this.mapErrorMessage) {
-            // 降级提示
+            // 降级提示 — flat, no emoji
             Column({ space: 10 }) {
-              Text('🗺️').fontSize(48)
-              Text('地图加载失败').fontSize(16).fontWeight(FontWeight.Bold).fontColor('#FF5252')
+              Text('地图加载失败')
+                .fontSize(FONT_BODY_LARGE)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(NEUTRAL_INK)
               Text(this.mapErrorMessage)
-                .fontSize(13).fontColor('#666666')
+                .fontSize(FONT_CAPTION)
+                .fontColor(NEUTRAL_INK_SECONDARY)
                 .textAlign(TextAlign.Center)
                 .padding({ left: 24, right: 24 })
               Text('您仍可使用「搜索」功能或下方的「我的位置」选点')
-                .fontSize(12).fontColor('#999999').margin({ top: 8 })
+                .fontSize(FONT_CAPTION_SM)
+                .fontColor(NEUTRAL_INK_TERTIARY)
+                .margin({ top: 8 })
             }
             .width('100%').height('100%')
             .justifyContent(FlexAlign.Center)
-            .backgroundColor('#F5F5F5')
+            .backgroundColor(BG_PAPER)
           } else {
             MapComponent({ mapOptions: this.mapOptions, mapCallback: this.mapCallback })
               .width('100%')
               .height('100%')
 
-            // 屏幕中心固定的"选点针"图标（drag-style picker）
+            // 屏幕中心固定的选点针图标 — SVG, no emoji
             Column() {
-              Text('📍').fontSize(36)
+              Image($r('app.media.icon_location'))
+                .width(36).height(36)
+                .fillColor(BRAND_RED)
             }
             .hitTestBehavior(HitTestMode.Transparent)
           }
 
-          // 浮动按钮：定位到我（嵌套一层 Column 用 padding 控制定位避免 position 的兼容差异）
+          // 浮动按钮：定位到我 — flat, no shadow
           Column() {
             Row() {
-              Text('📍').fontSize(20)
+              Image($r('app.media.icon_location'))
+                .width(20).height(20)
+                .fillColor(NEUTRAL_INK)
             }
-            .width(44).height(44).borderRadius(22).backgroundColor(Color.White)
-            .shadow({ radius: 8, color: 'rgba(0,0,0,0.15)', offsetY: 2 })
+            .width(44).height(44)
+            .backgroundColor(BG_CARD)
+            .border({ width: 0.5, color: DIVIDER })
             .justifyContent(FlexAlign.Center)
             .onClick(() => { this.moveToMyLocation(); })
           }
@@ -366,7 +362,7 @@ struct MapPickerPage {
           .padding({ right: 16, bottom: 16 })
           .hitTestBehavior(HitTestMode.Transparent)
 
-          // 搜索结果下拉（覆盖在地图顶部）
+          // 搜索结果下拉 — flat, bordered, no shadow
           if (this.showSearchResults && this.searchResults.length > 0) {
             Column() {
               Column() {
@@ -374,31 +370,38 @@ struct MapPickerPage {
                   Column() {
                     ForEach(this.searchResults, (hit: SearchHit) => {
                       Column({ space: 4 }) {
-                        Text(hit.name).fontSize(15).fontWeight(FontWeight.Medium).fontColor('#333333')
+                        Text(hit.name)
+                          .fontSize(FONT_BODY)
+                          .fontWeight(FontWeight.Medium)
+                          .fontColor(NEUTRAL_INK)
                         Text(hit.address || `${hit.latitude.toFixed(4)}, ${hit.longitude.toFixed(4)}`)
-                          .fontSize(12).fontColor('#999999')
+                          .fontSize(FONT_CAPTION_SM)
+                          .fontColor(NEUTRAL_INK_SECONDARY)
                           .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
                       }
                       .width('100%')
                       .alignItems(HorizontalAlign.Start)
                       .padding({ left: 14, right: 14, top: 10, bottom: 10 })
-                      .border({ width: { bottom: 0.5 }, color: '#EEEEEE' })
+                      .border({ width: { bottom: 0.5 }, color: DIVIDER })
                       .onClick(() => { this.pickSearchResult(hit); })
                     }, (hit: SearchHit) => `${hit.latitude}-${hit.longitude}-${hit.name}`)
 
                     Row() {
-                      Text('关闭').fontSize(13).fontColor('#999999')
+                      Text('关闭')
+                        .fontSize(FONT_CAPTION)
+                        .fontColor(NEUTRAL_INK_SECONDARY)
                     }
-                    .width('100%').padding(10).justifyContent(FlexAlign.Center)
+                    .width('100%').padding(10)
+                    .justifyContent(FlexAlign.Center)
                     .onClick(() => { this.showSearchResults = false; })
                   }
                 }
                 .scrollBar(BarState.Auto)
               }
-              .width('92%').constraintSize({ maxHeight: 280 })
-              .borderRadius(12)
-              .backgroundColor(Color.White)
-              .shadow({ radius: 10, color: 'rgba(0,0,0,0.18)', offsetY: 4 })
+              .width('92%')
+              .constraintSize({ maxHeight: 280 })
+              .backgroundColor(BG_CARD)
+              .border({ width: 0.5, color: DIVIDER })
               .margin({ top: 8 })
             }
             .width('100%').height('100%')
@@ -408,38 +411,53 @@ struct MapPickerPage {
         }
         .layoutWeight(1)
 
-        // 底部选中信息卡片
+        // ── 底部选中信息栏 ── flat, top divider ──
         Column({ space: 6 }) {
           Row() {
-            Text('📌 当前选中').fontSize(14).fontColor('#666666').layoutWeight(1)
+            Text('当前选中')
+              .fontSize(FONT_CAPTION)
+              .fontColor(NEUTRAL_INK_SECONDARY)
+              .layoutWeight(1)
             Text(`${this.pickedLat.toFixed(5)}, ${this.pickedLon.toFixed(5)}`)
-              .fontSize(12).fontColor('#999999')
+              .fontSize(FONT_CAPTION_SM)
+              .fontColor(NEUTRAL_INK_TERTIARY)
           }
           Text(this.pickedAddress)
-            .fontSize(15).fontColor('#333333')
+            .fontSize(FONT_BODY_LARGE)
+            .fontColor(NEUTRAL_INK)
             .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
             .width('100%')
           Row({ space: 10 }) {
             Row() {
-              Text('取消').fontSize(15).fontColor('#666666')
+              Text('取消')
+                .fontSize(FONT_BODY_LARGE)
+                .fontColor(NEUTRAL_INK_SECONDARY)
             }
-            .layoutWeight(1).height(42).borderRadius(21)
-            .backgroundColor('#F5F5F5').justifyContent(FlexAlign.Center)
+            .layoutWeight(1).height(42)
+            .justifyContent(FlexAlign.Center)
+            .border({ width: 0.5, color: DIVIDER })
             .onClick(() => { router.back(); })
+
             Row() {
-              Text('确认此位置').fontSize(15).fontColor(Color.White)
+              Text('确认此位置')
+                .fontSize(FONT_BODY_LARGE)
+                .fontColor(Color.White)
             }
-            .layoutWeight(2).height(42).borderRadius(21)
-            .backgroundColor(this.themePrimary).justifyContent(FlexAlign.Center)
+            .layoutWeight(2).height(42)
+            .backgroundColor(NEUTRAL_INK)
+            .justifyContent(FlexAlign.Center)
             .onClick(() => { this.confirmPick(); })
           }
           .margin({ top: 6 })
         }
-        .width('100%').padding(14).backgroundColor(Color.White)
+        .width('100%')
+        .padding(14)
+        .backgroundColor(BG_CARD)
+        .border({ width: { top: 0.5 }, color: DIVIDER })
         .alignItems(HorizontalAlign.Start)
       }
       .width('100%').height('100%')
-      .backgroundColor(this.themeLightBg)
+      .backgroundColor(BG_PAPER)
     }
     .width('100%').height('100%')
   }

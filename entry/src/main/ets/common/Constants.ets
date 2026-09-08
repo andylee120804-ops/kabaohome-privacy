@@ -6,6 +6,9 @@
 export const APP_NAME = '卡宝Home';
 export const APP_BUNDLE_NAME = 'com.family.kabaohome';
 
+// 页面转场动效时长（满足华为UX规范：<8.5寸≥200ms, 8.5-12寸≥250ms, >12寸≥300ms）
+export const PAGE_TRANSITION_DURATION = 350;
+
 // Tab数量限制
 export const MAX_CUSTOM_TABS = 3; // 首页+3个自选+我的=5个Tab
 
@@ -73,17 +76,39 @@ export enum PregnancyRisk {
   LOW = 'LOW'
 }
 
-// 预设成员颜色
+// 预设成员颜色（莫兰迪色系 - 柔和低饱和，方向B）
+// 成员色同时作为「选中态白字标签」的背景色，全部加深到白字对比度 >= 4.5:1（审核整改）
 export const MEMBER_COLORS: string[] = [
-  '#E91E63', // 粉红
-  '#1565C0', // 蓝色
-  '#E65100', // 橙色
-  '#C62828', // 红色
-  '#2E7D32', // 绿色
-  '#6A1B9A', // 紫色
-  '#00838F', // 青色
-  '#4E342E'  // 棕色
+  '#A85668', // 藕粉（白字 5.0:1 ✓）
+  '#4F6E88', // 雾蓝（白字 5.4:1 ✓）
+  '#96683F', // 暖橙（白字 4.8:1 ✓）
+  '#A55847', // 砖红（白字 5.1:1 ✓）
+  '#5F7A66', // 鼠尾草绿（白字 4.7:1 ✓）
+  '#6A5A80', // 雾紫（白字 6.0:1 ✓）
+  '#527478', // 灰青（白字 5.0:1 ✓）
+  '#7A6B5D'  // 暖棕（白字 5.0:1 ✓）
 ];
+
+export interface PeriodMarkColors {
+  PERIOD: string;
+  PERIOD_TEXT: string;    // 经期日期文字色（用于日历中经期非首天的文字）
+  FERTILE: string;
+  SAFE: string;
+  OVULATION: string;
+  INTIMACY: string;
+}
+
+// 周期标记色（莫兰迪暖系，与樱花粉主题协调，方向B）
+// 审核整改：PERIOD 加深至白字 5.3:1 ✓；经期日期统一实心圆+白字（原 0.85 半透明圆+暗玫
+// 瑰字仅 1.7:1，被华为审核判定对比度不足）；其余标记色加深使文字/标签场景 >= 4.5:1
+export const PERIOD_MARK_COLORS: PeriodMarkColors = {
+  PERIOD: '#C84A32',     // 卡宝红大（经期标记色，白字 on 方格 4.69:1 ✓ ≥14sp bold）
+  PERIOD_TEXT: '#FFFFFF', // 经期日期白字
+  FERTILE: '#707070',    // 三级灰（易孕，italic 文字 4.64:1 ✓）
+  SAFE: '#3D6B5C',       // 墨绿（安全，文字 5.69:1 ✓）
+  OVULATION: '#1A1A1A',  // 墨黑粗体（排卵，bold 16.31:1 ✓）
+  INTIMACY: '#B8402A'    // 卡宝红深（亲密，文字 5.17:1 ✓）
+};
 
 export interface SyncConfig {
   MAX_RETRIES: number;
@@ -97,6 +122,12 @@ export interface ModuleVisibility {
   moduleId: ModuleId;
   visibility: Visibility;
   visibleMemberIds: string[];
+}
+
+/** 模块共享配置解析结果（用于创建单条记录：visibleMembers 已转成 userId） */
+export interface ResolvedVisibility {
+  visibility: Visibility;
+  visibleMembers: string[];
 }
 
 // 同步重试配置
@@ -120,7 +151,7 @@ export interface HealthRanges {
   HEART_RATE: HealthRange;
 }
 
-// 家庭色系
+// 家庭色系（全部莫兰迪化，方向B - 柔和低饱和暖系）
 export enum ThemeColor {
   WARM_CORAL = 'WARM_CORAL',
   OCEAN_BLUE = 'OCEAN_BLUE',
@@ -141,24 +172,25 @@ export interface ThemePalette {
 
 export const THEME_PALETTES: ThemePalette[] = [
   {
-    id: ThemeColor.WARM_CORAL, name: '暖珊瑚',
-    primary: '#E8654A', gradientStart: '#E8654A', gradientEnd: '#F28B6E',
-    lightBg: '#FFF5F0', border: '#FFD4C2', tag: '🪸'
+    id: ThemeColor.WARM_CORAL, name: '樱花粉',
+    // 审核整改：渐变色板加深，保证其上白色文字 >= 4.5:1（原 #D47D8E 白字仅 2.8:1）
+    primary: '#AC5263', gradientStart: '#AC5263', gradientEnd: '#8E3A4C',
+    lightBg: '#FFF2F4', border: '#F0D0DA', tag: '🌸'
   },
   {
-    id: ThemeColor.OCEAN_BLUE, name: '深海蓝',
-    primary: '#2B5F9E', gradientStart: '#2B5F9E', gradientEnd: '#5B8FD4',
-    lightBg: '#F0F5FF', border: '#C5D8F0', tag: '🌊'
+    id: ThemeColor.OCEAN_BLUE, name: '雾霾蓝',
+    primary: '#4A6B85', gradientStart: '#4A6B85', gradientEnd: '#3A5B75',
+    lightBg: '#F4F6F8', border: '#D5DEE5', tag: '🌊'
   },
   {
-    id: ThemeColor.FOREST_GREEN, name: '森绿',
-    primary: '#2D7A4F', gradientStart: '#2D7A4F', gradientEnd: '#5AAF7C',
-    lightBg: '#F0F7F0', border: '#C2E4CE', tag: '🌿'
+    id: ThemeColor.FOREST_GREEN, name: '鼠尾草绿',
+    primary: '#4A7560', gradientStart: '#4A7560', gradientEnd: '#3A6550',
+    lightBg: '#F4F7F5', border: '#D5DED7', tag: '🌿'
   },
   {
-    id: ThemeColor.SUNSET_AMBER, name: '暮光琥珀',
-    primary: '#D4850A', gradientStart: '#D4850A', gradientEnd: '#F0A832',
-    lightBg: '#FFFBF0', border: '#FFE0A0', tag: '🌅'
+    id: ThemeColor.SUNSET_AMBER, name: '暮光金',
+    primary: '#8A6530', gradientStart: '#8A6530', gradientEnd: '#705525',
+    lightBg: '#FAF6F0', border: '#E8DCC8', tag: '🌅'
   }
 ];
 
@@ -190,12 +222,12 @@ export const EMOJI_SETS: EmojiSet[] = [
   {
     id: EmojiStyle.WARM, name: '温暖亲密',
     modules: '✨', members: '🫂', invite: '🤝', theme: '🌈',
-    emojiStyle: '💫', font: '🌙', exit: '🍂'
+    emojiStyle: '💫', font: '☀️', exit: '🍂'
   },
   {
     id: EmojiStyle.KABAO, name: '卡宝专属',
     modules: '🧩', members: '💝', invite: '🎁', theme: '🌸',
-    emojiStyle: '🧸', font: '🌙', exit: '💔'
+    emojiStyle: '🧸', font: '🌟', exit: '💔'
   }
 ];
 

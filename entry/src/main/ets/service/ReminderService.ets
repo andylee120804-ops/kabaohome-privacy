@@ -23,6 +23,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { LocalDbService } from './LocalDbService';
 import { Medication } from '../model/Medication';
 import { Reminder } from '../model/Reminder';
+import { toDateAtLocalMidnight, toDateTime, formatDate } from '../common/Utils';
 
 const TAG = '[ReminderService]';
 const DOMAIN = 0x0000;
@@ -156,9 +157,10 @@ export class ReminderService {
 
       try {
         // 计算下一次触发时间的真实日期
-        const nextDate = new Date();
+        const now = new Date();
+        const nextDate = toDateAtLocalMidnight(formatDate(now));
         nextDate.setHours(hour, minute, 0, 0);
-        if (nextDate.getTime() <= Date.now()) {
+        if (nextDate.getTime() <= now.getTime()) {
           nextDate.setDate(nextDate.getDate() + 1);
         }
 
@@ -207,12 +209,15 @@ export class ReminderService {
   }
 
   /**
-   * 发布提醒事项系统提醒（闹钟类型，单次或重复）
+   * 发布提醒事项系统提醒
+   * - 一次性提醒：日历类型，绑定完整日期时间，仅在到期时刻触发一次。
+   *   不能用闹钟类型：它只含时分不含日期，一次性提醒会错日触发/每天重复触发
+   * - 重复提醒：闹钟类型，按星期重复
    */
   private async publishReminderSystemReminder(reminder: Reminder): Promise<void> {
     if (!reminder.dueTime) return;
 
-    const dueTime = new Date(reminder.dueTime);
+    const dueTime = toDateTime(reminder.dueTime);
     const delayMs = dueTime.getTime() - Date.now();
     if (delayMs <= 0) return;
 
@@ -225,22 +230,47 @@ export class ReminderService {
     }
 
     try {
-      let request: reminderAgentManager.ReminderRequestAlarm = {
-        reminderType: reminderAgentManager.ReminderType.REMINDER_TYPE_ALARM,
-        hour: dueTime.getHours(),
-        minute: dueTime.getMinutes(),
-        title: '📋 ' + reminder.title,
-        content: reminder.description || '家庭提醒',
-        expiredContent: `提醒已过期: ${reminder.title}`,
-        slotType: notificationManager.SlotType.SOCIAL_COMMUNICATION
-      };
+      let reminderId: number;
 
-      // 如果是重复提醒，设置重复天数
       if (reminder.isRecurring && reminder.recurrenceRule) {
-        request.daysOfWeek = [1, 2, 3, 4, 5, 6, 7]; // 简化：每天都重复
+        // 重复提醒：闹钟类型（按星期重复）
+        const rule = reminder.recurrenceRule.toLowerCase();
+        const daysOfWeek: number[] = rule === 'weekly'
+          ? [1, 2, 3, 4, 5] // 周一至周五（每周重复）
+          : [1, 2, 3, 4, 5, 6, 7]; // 每天 / monthly / yearly / 默认
+        const alarmRequest: reminderAgentManager.ReminderRequestAlarm = {
+          reminderType: reminderAgentManager.ReminderType.REMINDER_TYPE_ALARM,
+          hour: dueTime.getHours(),
+          minute: dueTime.getMinutes(),
+          daysOfWeek: daysOfWeek,
+          title: '📋 ' + reminder.title,
+          content: reminder.description || '家庭提醒',
+          expiredContent: `提醒已过期: ${reminder.title}`,
+          slotType: notificationManager.SlotType.SOCIAL_COMMUNICATION
+        };
+        reminderId = await reminderAgentManager.publishReminder(alarmRequest);
+      } else {
+        // 一次性提醒：日历类型，绑定具体日期时间，只触发一次
+        const dateTime: reminderAgentManager.LocalDateTime = {
+          year: dueTime.getFullYear(),
+          month: dueTime.getMonth() + 1, // API 月份从1开始
+          day: dueTime.getDate(),
+          hour: dueTime.getHours(),
+          minute: dueTime.getMinutes()
+        };
+        const calendarRequest: reminderAgentManager.ReminderRequestCalendar = {
+          reminderType: reminderAgentManager.ReminderType.REMINDER_TYPE_CALENDAR,
+          dateTime: dateTime,
+          repeatMonths: [],
+          repeatDays: [],
+          title: '📋 ' + reminder.title,
+          content: reminder.description || '家庭提醒',
+          expiredContent: `提醒已过期: ${reminder.title}`,
+          slotType: notificationManager.SlotType.SOCIAL_COMMUNICATION
+        };
+        reminderId = await reminderAgentManager.publishReminder(calendarRequest);
       }
 
-      const reminderId: number = await reminderAgentManager.publishReminder(request);
       this.publishedReminders.push({
         localId: existKey,
         systemId: reminderId,
@@ -300,7 +330,7 @@ export class ReminderService {
 
   private publishReminderLocalReminder(reminder: Reminder): void {
     if (!reminder.dueTime) return;
-    const dueTime = new Date(reminder.dueTime);
+    const dueTime = toDateTime(reminder.dueTime);
     const delayMs = dueTime.getTime() - Date.now();
     if (delayMs <= 0) return;
 
@@ -314,7 +344,8 @@ export class ReminderService {
 
   private calculateMillisFromNow(hour: number, minute: number): number {
     const now = new Date();
-    const target = new Date();
+    const today = formatDate(now);
+    const target = toDateAtLocalMidnight(today);
     target.setHours(hour, minute, 0, 0);
     if (target.getTime() <= now.getTime()) {
       target.setDate(target.getDate() + 1);

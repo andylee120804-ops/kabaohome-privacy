@@ -51,3 +51,22 @@ cloud/*/shared/agc-service-account*.json
 
 # DevEco 性能分析器调试产物（含数百 MB 的 htrace/perfdata/视频，禁止提交）
 .appanalyzer/
+
+# 签名凭据备份 — 同 build-profile.json5，含密钥，禁止提交
+build-profile.json5.bak
+
+# AI 工具本地目录（会话状态/缓存，非项目源码）
+.codebuddy/
+.codegenie/
+.codex/
+.cursor/
+.arts/
+.mcp.json
+.npmrc
+.ohpmrc
+
+# 临时/分析产物
+hs_err_pid*.log
+*.xlsx
+contrast_*.py
+result*.xlsx

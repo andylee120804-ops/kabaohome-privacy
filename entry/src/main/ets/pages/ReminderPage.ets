@@ -7,16 +7,29 @@
  * 与「消息中心」(NotificationCenterPage) 的区别：
  *  - 消息中心：跨模块未办事项聚合 + 一键完成 + 快速触达。
  *  - 家庭提醒：本模块专属的 CRUD + 分类浏览 + 时间轴。
+ *
+ * 方向 C · 极简编辑：纸白底 + 墨黑正文 + flat 分隔线 + 衬线标题 + 文本动作
  */
 import { Reminder } from '../model/Reminder';
+import {
+  BG_PAPER, BG_CARD, BG_SUBTLE, DIVIDER, BORDER_SUBTLE,
+  NEUTRAL_INK, NEUTRAL_INK_SECONDARY, NEUTRAL_INK_TERTIARY,
+  BRAND_RED, BRAND_RED_LG,
+  SEMANTIC_SUCCESS, SEMANTIC_ERROR, SEMANTIC_WARNING, SEMANTIC_INFO,
+  MIST_PURPLE, ERROR_BG, WARNING_BG, SUCCESS_BG,
+  FONT_BODY, FONT_BODY_LARGE, FONT_CAPTION, FONT_CAPTION_SM,
+  FONT_TITLE, FONT_FAMILY_SERIF, SPACE_MD, SPACE_LG
+} from '../common/DesignTokens';
 import { SHOPPING_CATEGORIES } from '../model/ShoppingItem';
 import { LocalDbService } from '../service/LocalDbService';
-import { Visibility, FontSizeMode, THEME_PALETTES } from '../common/Constants';
+import { CloudService } from '../service/CloudService';
+import { Visibility, FontSizeMode, PAGE_TRANSITION_DURATION, ModuleId } from '../common/Constants';
 import { EmptyState } from '../components/EmptyState';
 import { FamilyMember } from '../model/FamilyMember';
 import { FamilyViewModel } from '../viewmodel/FamilyViewModel';
-import { formatDate, generateId } from '../common/Utils';
+import { formatDate, generateId, toDateAtLocalMidnight, creatorDisplayLabel } from '../common/Utils';
 import router from '@ohos.router';
+import { curves } from '@kit.ArkUI';
 
 interface ReminderTypeOption {
   type: string;
@@ -48,17 +61,14 @@ interface ReminderGroup {
   items: Reminder[];
 }
 
-// 家庭提醒可选类型——精简至 5 类（生日 / 纪念日 / 家庭活动 / 购物 / 缴费）
-// 注：未选中时统一灰色，选中时才显示主题色，避免视觉过载
 const REMINDER_TYPES: ReminderTypeOption[] = [
-  { type: 'birthday', label: '生日', icon: '🎂', color: '#E91E63', bgColor: '#FCE4EC' },
-  { type: 'anniversary', label: '纪念日', icon: '❤️', color: '#D32F2F', bgColor: '#FFEBEE' },
-  { type: 'family', label: '家庭活动', icon: '👨‍👩‍👧', color: '#7B1FA2', bgColor: '#F3E5F5' },
-  { type: 'shopping', label: '购物', icon: '🛒', color: '#2E7D32', bgColor: '#E8F5E9' },
-  { type: 'bill', label: '缴费', icon: '💰', color: '#F57C00', bgColor: '#FFF3E0' }
+  { type: 'birthday', label: '生日', icon: '🎂', color: BRAND_RED_LG, bgColor: ERROR_BG },
+  { type: 'anniversary', label: '纪念日', icon: '❤️', color: SEMANTIC_ERROR, bgColor: ERROR_BG },
+  { type: 'family', label: '家庭活动', icon: '👨‍👩‍👧', color: MIST_PURPLE, bgColor: BG_SUBTLE },
+  { type: 'shopping', label: '购物', icon: '🛒', color: SEMANTIC_SUCCESS, bgColor: SUCCESS_BG },
+  { type: 'bill', label: '缴费', icon: '💰', color: SEMANTIC_WARNING, bgColor: WARNING_BG }
 ];
 
-// 重复规则选项（提到顶层，避免 ForEach 用内联字面量在严格模式下崩）
 const RECURRENCE_OPTIONS: RecurrenceOption[] = [
   { rule: 'daily', label: '每天' },
   { rule: 'weekly', label: '每周' },
@@ -66,25 +76,33 @@ const RECURRENCE_OPTIONS: RecurrenceOption[] = [
   { rule: 'yearly', label: '每年' }
 ];
 
-// 可见范围选项（同上）
 const VISIBILITY_OPTIONS: VisibilityOption[] = [
-  { vis: Visibility.PRIVATE, label: '🔒 仅自己' },
-  { vis: Visibility.SELECTED, label: '👥 指定成员' },
-  { vis: Visibility.FAMILY, label: '👨‍👩‍👧‍👦 全家可见' }
+  { vis: Visibility.PRIVATE, label: '仅自己' },
+  { vis: Visibility.SELECTED, label: '指定成员' },
+  { vis: Visibility.FAMILY, label: '全家可见' }
 ];
+
+function getReminderIconRes(type: string): Resource | null {
+  switch (type) {
+    case 'birthday': return $r('app.media.icon_star');
+    case 'anniversary': return $r('app.media.icon_heart');
+    case 'shopping': return $r('app.media.icon_cart');
+    case 'bill': return $r('app.media.icon_wallet');
+    case 'medication': return $r('app.media.icon_pill');
+    default: return null;
+  }
+}
 
 @Entry
 @Component
 struct ReminderPage {
   @State reminders: Reminder[] = [];
   @State familyMembers: FamilyMember[] = [];
-
-  // —— 视图状态 ——
-  @State activeFilter: string = 'all';     // all | birthday | anniversary | family | shopping | bill
+  @State activeFilter: string = 'all';
   @State showCompleted: boolean = false;
-
-  // —— 表单状态 ——
+  @State isRefreshing: boolean = false;
   @State showAddDialog: boolean = false;
+  @State isSavingReminder: boolean = false;
   @State editingReminderId: string = '';
   @State newTitle: string = '';
   @State newDescription: string = '';
@@ -94,44 +112,21 @@ struct ReminderPage {
   @State newIsRecurring: boolean = false;
   @State newRecurrenceRule: string = 'yearly';
   @State newVisibility: Visibility = Visibility.FAMILY;
+  @State newVisibleUserIds: string[] = [];
   @State newItemCategory: string = '';
   @State newItemQuantity: string = '';
-
-  // —— 详情弹窗 ——
   @State showDetail: boolean = false;
   @State detailReminder: Reminder | null = null;
-
-  // —— 主题 / 字号 ——
   @State isLargeFont: boolean = false;
-  @State fontSize: number = 16;
-  @State titleFontSize: number = 20;
-  @State themeLightBg: string = '#FFF5F0';
-  @State themePrimary: string = '#E8654A';
-  @State themeBorder: string = '#FFD4C2';
-  @State themeGradStart: string = '#E8654A';
-  @State themeGradEnd: string = '#F28B6E';
 
   private db: LocalDbService = LocalDbService.getInstance();
   private familyVm: FamilyViewModel = new FamilyViewModel();
 
   aboutToAppear(): void {
-    // 先加载数据让页面立即可见，再异步执行迁移
     this.loadData();
     const member = this.familyVm.getCurrentMember();
     this.isLargeFont = member?.fontSizeMode === FontSizeMode.LARGE;
-    const palette = THEME_PALETTES.find(p => p.id === this.db.getThemeColor()) ?? THEME_PALETTES[0];
-    this.themeLightBg = palette.lightBg;
-    this.themePrimary = palette.primary;
-    this.themeBorder = palette.border;
-    this.themeGradStart = palette.gradientStart;
-    this.themeGradEnd = palette.gradientEnd;
-    if (this.isLargeFont) {
-      this.fontSize = 20;
-      this.titleFontSize = 24;
-    }
-    // 若从首页直接传入 reminderId，自动打开详情弹窗
     this.openDetailFromParams();
-    // 延迟到下一帧执行迁移，避免阻塞首次渲染，并捕获所有异常
     setTimeout(() => {
       this.migrateOldShoppingItems().catch((e: Error) => {
         console.error('[ReminderPage] migrate shopping items failed:', e?.message ?? String(e));
@@ -144,9 +139,6 @@ struct ReminderPage {
     this.openDetailFromParams();
   }
 
-  /**
-   * 处理路由参数：首页直接跳详情时携带 { reminderId, openDetail: true }
-   */
   private openDetailFromParams(): void {
     try {
       const params = router.getParams() as Record<string, Object> | undefined;
@@ -159,45 +151,26 @@ struct ReminderPage {
         this.detailReminder = target;
         this.showDetail = true;
       }
-    } catch (_) {
-      // 路由参数不存在或解析失败时忽略
-    }
+    } catch (_) {}
   }
 
-  /**
-   * 迁移旧版购物清单 -> 提醒事项（与原实现一致，保留以保护历史数据）
-   * 改为标准 async 方法 + try/catch，避免 unhandled promise rejection 触发 ability 崩溃
-   */
   private async migrateOldShoppingItems(): Promise<void> {
     try {
       const oldItems = this.db.getShoppingItems() ?? [];
       if (oldItems.length === 0) return;
-
       const existingReminders = this.db.getReminders() ?? [];
-
       for (const item of oldItems) {
         const exists = existingReminders.some(r => r.title === item.itemName && r.reminderType === 'shopping');
         const now = new Date().toISOString();
-
         if (!exists) {
           const reminder: Reminder = {
-            id: generateId('rm'),
-            familyId: item.familyId,
-            creatorId: item.creatorId,
-            visibility: item.visibility,
-            visibleMembers: item.visibleMembers,
-            version: 1,
-            createdAt: now,
-            updatedAt: now,
-            title: item.itemName,
-            description: `分类:${item.category}·${item.quantity}`,
-            reminderType: 'shopping',
-            dueTime: '',
-            isRecurring: false,
-            recurrenceRule: '',
-            isCompleted: item.isPurchased,
-            completedAt: item.isPurchased ? now : '',
-            reminderSettings: []
+            id: generateId('rm'), familyId: item.familyId, creatorId: item.creatorId,
+            visibility: item.visibility, visibleMembers: item.visibleMembers,
+            version: 1, createdAt: now, updatedAt: now,
+            title: item.itemName, description: `分类:${item.category}·${item.quantity}`,
+            reminderType: 'shopping', dueTime: '', isRecurring: false,
+            recurrenceRule: '', isCompleted: item.isPurchased,
+            completedAt: item.isPurchased ? now : '', reminderSettings: []
           };
           await this.db.saveReminder(reminder);
         }
@@ -210,16 +183,31 @@ struct ReminderPage {
   }
 
   private loadData(): void {
-    // 显式构造新数组引用，确保 @State 能稳定触发 UI 刷新
-    // （JSON.parse 已返回新数组，但额外的浅拷贝可避免某些 ArkTS 版本对引用变化的判断歧义）
     const fresh = this.db.getReminders() ?? [];
     this.reminders = [...fresh];
     const members = this.familyVm.getFamilyMembers() ?? [];
     this.familyMembers = [...members];
   }
 
+  private async handlePullRefresh(): Promise<void> {
+    try {
+      const familyId = this.db.getCurrentFamilyId();
+      if (familyId && CloudService.getInstance().isCloudAvailable()) {
+        await CloudService.getInstance().syncAll(familyId, true);
+      }
+    } finally {
+      this.isRefreshing = false;
+      this.loadData();
+    }
+  }
+
   private isCreator(creatorId: string): boolean {
-    return creatorId === this.db.getCurrentUserId();
+    return this.db.isRecordCreator(creatorId);
+  }
+
+  private recordCreatorLabel(creatorId: string): string {
+    if (!creatorId || this.isCreator(creatorId)) return '';
+    return creatorDisplayLabel(creatorId, this.familyMembers);
   }
 
   private resetForm(): void {
@@ -230,34 +218,64 @@ struct ReminderPage {
     this.newReminderType = 'birthday';
     this.newIsRecurring = false;
     this.newRecurrenceRule = 'yearly';
-    this.newVisibility = Visibility.FAMILY;
+    const moduleVis = this.db.resolveModuleVisibilityForRecord(ModuleId.REMINDER);
+    this.newVisibility = moduleVis.visibility;
+    this.newVisibleUserIds = moduleVis.visibility === Visibility.SELECTED && moduleVis.visibleMembers.length > 0
+      ? [...moduleVis.visibleMembers] : [];
     this.newItemCategory = '';
     this.newItemQuantity = '';
   }
 
-  /**
-   * 关闭添加/编辑对话框时统一清理状态，
-   * 避免 editingReminderId 残留导致下一次"新建"误写入旧记录
-   */
+  private getShareCandidates(): FamilyMember[] {
+    const currentUserId = this.db.getCurrentUserId();
+    const currentMemberId = this.db.getCurrentMemberId();
+    const result: FamilyMember[] = [];
+    for (let i = 0; i < this.familyMembers.length; i++) {
+      const m = this.familyMembers[i];
+      if (!m || m.isDeleted === true) continue;
+      if (!m.userId) continue;
+      if (currentMemberId && m.id === currentMemberId) continue;
+      if (currentUserId && m.userId === currentUserId) continue;
+      result.push(m);
+    }
+    return result;
+  }
+
+  private toggleVisibleMember(userId: string): void {
+    const idx = this.newVisibleUserIds.indexOf(userId);
+    if (idx >= 0) {
+      this.newVisibleUserIds = this.newVisibleUserIds.filter(id => id !== userId);
+    } else {
+      this.newVisibleUserIds = [...this.newVisibleUserIds, userId];
+    }
+  }
+
+  private isMemberSelected(userId: string): boolean {
+    return this.newVisibleUserIds.indexOf(userId) >= 0;
+  }
+
+  private selectVisibility(value: Visibility): void {
+    this.newVisibility = value;
+    if (value !== Visibility.SELECTED) return;
+    if (this.newVisibleUserIds.length > 0) return;
+    const moduleVis = this.db.resolveModuleVisibilityForRecord(ModuleId.REMINDER);
+    if (moduleVis.visibility === Visibility.SELECTED && moduleVis.visibleMembers.length > 0) {
+      this.newVisibleUserIds = [...moduleVis.visibleMembers];
+    }
+  }
+
   private closeAddDialog(): void {
     this.showAddDialog = false;
     this.editingReminderId = '';
     this.resetForm();
   }
 
-  /**
-   * 类型 -> 元数据
-   */
   private getTypeMeta(type: string): ReminderTypeOption {
     const found = REMINDER_TYPES.find(t => t.type === type);
     if (found) return found;
-    return { type: 'other', label: '其他', icon: '📎', color: '#546E7A', bgColor: '#ECEFF1' };
+    return { type: 'other', label: '其他', icon: '📎', color: SEMANTIC_INFO, bgColor: BORDER_SUBTLE };
   }
 
-  /**
-   * 当前筛选条件下的活跃提醒
-   * 注意：ArkTS @Component struct 不支持 get 属性，必须用普通方法
-   */
   private getFilteredActive(): Reminder[] {
     return this.reminders.filter(r => {
       if (r.isCompleted) return false;
@@ -274,167 +292,157 @@ struct ReminderPage {
     });
   }
 
-  /**
-   * 把活跃提醒分组：即将到来（有 dueTime 且未过期）/ 永久（recurring yearly 等）/ 无日期
-   */
   private getActiveGroups(): ReminderGroup[] {
-    const nowIso = new Date().toISOString();
+    const nowMs = Date.now();
     const items = this.getFilteredActive();
-
     const overdue: Reminder[] = [];
     const upcoming: Reminder[] = [];
     const recurring: Reminder[] = [];
     const undated: Reminder[] = [];
-
     for (const r of items) {
+      if (r.reminderType === 'period') {
+        if (r.dueTime && new Date(r.dueTime).getTime() < nowMs) {
+          overdue.push(r);
+        }
+        continue;
+      }
       if (r.isRecurring) {
         recurring.push(r);
       } else if (!r.dueTime) {
         undated.push(r);
-      } else if (r.dueTime < nowIso) {
+      } else if (new Date(r.dueTime).getTime() < nowMs) {
         overdue.push(r);
       } else {
         upcoming.push(r);
       }
     }
-
-    // 即将到来按时间升序
     upcoming.sort((a, b) => (a.dueTime > b.dueTime ? 1 : -1));
     overdue.sort((a, b) => (a.dueTime > b.dueTime ? -1 : 1));
-
     const groups: ReminderGroup[] = [];
-    if (overdue.length > 0) groups.push({ key: 'overdue', label: '🔴 已过期', items: overdue });
-    if (upcoming.length > 0) groups.push({ key: 'upcoming', label: '📅 即将到来', items: upcoming });
-    if (recurring.length > 0) groups.push({ key: 'recurring', label: '🔂 重复事项', items: recurring });
-    if (undated.length > 0) groups.push({ key: 'undated', label: '📝 无截止', items: undated });
-
+    if (overdue.length > 0) groups.push({ key: 'overdue', label: '已过期', items: overdue });
+    if (upcoming.length > 0) groups.push({ key: 'upcoming', label: '即将到来', items: upcoming });
+    if (recurring.length > 0) groups.push({ key: 'recurring', label: '重复事项', items: recurring });
+    if (undated.length > 0) groups.push({ key: 'undated', label: '无截止', items: undated });
     return groups;
   }
 
-  /**
-   * 各类型计数（用于顶部 chip）
-   */
   private countByType(type: string): number {
     return this.reminders.filter(r => !r.isCompleted && r.reminderType === type).length;
+  }
+
+  pageTransition(): void {
+    PageTransitionEnter({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Right)
+    PageTransitionExit({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Left)
+    PageTransitionEnter({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Left)
+    PageTransitionExit({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Right)
   }
 
   build() {
     Stack() {
       Column() {
-        // —— 顶栏 ——
         this.TitleBar()
 
-        // —— 类型筛选 chip 横向滚动 ——
         Scroll() {
-          Row({ space: 8 }) {
-            this.FilterChip('all', '全部', '✨')
+          Row({ space: 6 }) {
+            this.FilterChip('all', '全部')
             ForEach(REMINDER_TYPES, (t: ReminderTypeOption) => {
-              this.FilterChip(t.type, t.label, t.icon)
+              this.FilterChip(t.type, t.label)
             }, (t: ReminderTypeOption) => t.type)
           }
-          .padding({ left: 16, right: 16 })
+          .padding({ left: SPACE_MD, right: SPACE_MD })
         }
         .scrollable(ScrollDirection.Horizontal)
         .scrollBar(BarState.Off)
         .width('100%')
-        .padding({ top: 4, bottom: 8 })
+        .border({ width: { bottom: 0.5 }, color: DIVIDER })
+        .padding({ top: 4, bottom: 4 })
 
-        // —— 类型概览卡（仅在「全部」筛选时显示）——
         if (this.activeFilter === 'all') {
           this.TypeOverview()
         }
 
-        // —— 主列表 ——
-        Scroll() {
-          Column({ space: 0 }) {
-            if (this.getFilteredActive().length === 0 && this.getFilteredCompleted().length === 0) {
-              EmptyState({
-                icon: this.activeFilter === 'all' ? '🎯' : this.getTypeMeta(this.activeFilter).icon,
-                title: this.activeFilter === 'all' ? '还没有家庭提醒' : `暂无${this.getTypeMeta(this.activeFilter).label}`,
-                subtitle: '生日、纪念日、缴费、购物……一处管理',
-                actionText: '+ 创建提醒',
-                buttonColor: this.themePrimary,
-                onAction: () => {
-                  this.editingReminderId = '';
-                  this.resetForm();
-                  if (this.activeFilter !== 'all') {
-                    this.newReminderType = this.activeFilter;
+        Refresh({ refreshing: $$this.isRefreshing }) {
+          Scroll() {
+            Column({ space: 0 }) {
+              if (this.getFilteredActive().length === 0 && this.getFilteredCompleted().length === 0) {
+                EmptyState({
+                  icon: this.activeFilter === 'all' ? '🎯' : this.getTypeMeta(this.activeFilter).icon,
+                  title: this.activeFilter === 'all' ? '还没有家庭提醒' : `暂无${this.getTypeMeta(this.activeFilter).label}`,
+                  subtitle: '生日、纪念日、缴费、购物……一处管理',
+                  actionText: '+ 创建提醒',
+                  onAction: () => {
+                    this.editingReminderId = '';
+                    this.resetForm();
+                    if (this.activeFilter !== 'all') {
+                      this.newReminderType = this.activeFilter;
+                    }
+                    this.showAddDialog = true;
                   }
-                  this.showAddDialog = true;
-                }
-              })
-            } else {
-              // 分组渲染
-              ForEach(this.getActiveGroups(), (group: ReminderGroup) => {
-                this.SectionHeader(group.label, group.items.length)
-                ForEach(group.items, (r: Reminder) => {
-                  this.ReminderCard(r)
-                }, (r: Reminder) => r.id)
-              }, (group: ReminderGroup) => group.key)
-
-              // 已完成 - 折叠
-              if (this.getFilteredCompleted().length > 0) {
-                Row() {
-                  Text('✅ 已完成').fontSize(16).fontWeight(FontWeight.Medium).fontColor('#999999')
-                  Text(`${this.getFilteredCompleted().length}项`).fontSize(14).fontColor('#BBBBBB').margin({ left: 6 })
-                  Text(this.showCompleted ? '▲' : '▼').fontSize(12).fontColor('#BBBBBB').margin({ left: 4 })
-                }
-                .width('100%')
-                .padding({ left: 16, right: 16, top: 12, bottom: 4 })
-                .onClick(() => { this.showCompleted = !this.showCompleted; })
-
-                if (this.showCompleted) {
-                  ForEach(this.getFilteredCompleted(), (r: Reminder) => {
+                })
+              } else {
+                ForEach(this.getActiveGroups(), (group: ReminderGroup) => {
+                  this.SectionHeader(group.label, group.items.length)
+                  ForEach(group.items, (r: Reminder) => {
                     this.ReminderCard(r)
-                  }, (r: Reminder) => r.id)
+                  }, (r: Reminder) => r.id + '_' + r.updatedAt)
+                }, (group: ReminderGroup) => group.key)
+
+                if (this.getFilteredCompleted().length > 0) {
+                  Row() {
+                    Text('已完成')
+                      .fontSize(FONT_BODY).fontWeight(FontWeight.Medium).fontColor(NEUTRAL_INK_SECONDARY)
+                    Text(`${this.getFilteredCompleted().length}`)
+                      .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY).margin({ left: 6 })
+                    Blank()
+                    Text(this.showCompleted ? '收起' : '展开')
+                      .fontSize(FONT_CAPTION).fontColor(BRAND_RED)
+                  }
+                  .width('100%')
+                  .padding({ left: SPACE_LG, right: SPACE_LG, top: 14, bottom: 6 })
+                  .onClick(() => { this.showCompleted = !this.showCompleted; })
+
+                  if (this.showCompleted) {
+                    ForEach(this.getFilteredCompleted(), (r: Reminder) => {
+                      this.ReminderCard(r)
+                    }, (r: Reminder) => r.id + '_' + r.updatedAt)
+                  }
                 }
+
+                Button('+ 添加提醒')
+                  .fontSize(FONT_BODY)
+                  .fontColor(Color.White)
+                  .backgroundColor(NEUTRAL_INK)
+                  .borderRadius(0)
+                  .width('100%')
+                  .margin({ top: SPACE_LG })
+                  .onClick(() => {
+                    this.editingReminderId = '';
+                    this.resetForm();
+                    if (this.activeFilter !== 'all') {
+                      this.newReminderType = this.activeFilter;
+                    }
+                    this.showAddDialog = true;
+                  })
               }
             }
+            .width('100%')
+            .padding({ bottom: 100 })
+            .alignItems(HorizontalAlign.Start)
           }
           .width('100%')
-          .padding({ bottom: 100 })
-          .alignItems(HorizontalAlign.Start)
+          .height('100%')
+          .align(Alignment.TopStart)
+          .edgeEffect(EdgeEffect.Spring)
         }
+        .width('100%')
         .layoutWeight(1)
-        .align(Alignment.TopStart)
+        .onRefreshing(() => { this.handlePullRefresh().catch(() => {}); })
       }
       .width('100%')
       .height('100%')
       .alignItems(HorizontalAlign.Start)
-      .backgroundColor(this.themeLightBg)
+      .backgroundColor(BG_PAPER)
 
-      // —— 悬浮 + 按钮 ——
-      Column() {
-        Text('✚')
-          .fontSize(30)
-          .fontColor(Color.White)
-          .fontWeight(FontWeight.Bold)
-      }
-      .width(60)
-      .height(60)
-      .borderRadius(30)
-      .linearGradient({
-        angle: 135,
-        colors: [[this.themeGradStart, 0.0], [this.themeGradEnd, 1.0]]
-      })
-      .justifyContent(FlexAlign.Center)
-      .shadow({
-        radius: 16,
-        color: '#66000000',
-        offsetX: 0,
-        offsetY: 6
-      })
-      .position({ x: '82%', y: '88%' })
-      .onClick(() => {
-        this.editingReminderId = '';
-        this.resetForm();
-        if (this.activeFilter !== 'all') {
-          this.newReminderType = this.activeFilter;
-        }
-        this.showAddDialog = true;
-      })
-
-      // —— 对话框覆盖层（用条件渲染替代多个 bindContentCover）——
       if (this.showAddDialog) {
         this.AddReminderOverlay()
       }
@@ -450,124 +458,127 @@ struct ReminderPage {
   @Builder
   TitleBar() {
     Row() {
-      Row() {
-        Text('<')
-          .fontSize(22).fontWeight(FontWeight.Bold).fontColor(this.themePrimary)
-      }
-      .width(34).height(34).borderRadius(17)
-      .backgroundColor(this.themeBorder)
-      .justifyContent(FlexAlign.Center)
-      .onClick(() => { router.back(); })
+      Image($r('app.media.icon_back'))
+        .width(24).height(24)
+        .fillColor(NEUTRAL_INK)
+        .onClick(() => { router.back(); })
 
       Column() {
-        Text('📋 家庭提醒').fontSize(this.titleFontSize).fontWeight(FontWeight.Bold)
-        Text('记录每一件值得被记得的事').fontSize(11).fontColor('#999999').margin({ top: 2 })
+        Text('家庭提醒')
+          .fontSize(FONT_TITLE).fontWeight(FontWeight.Bold)
+          .fontColor(NEUTRAL_INK).fontFamily(FONT_FAMILY_SERIF)
+        Text('记录每一件值得被记得的事')
+          .fontSize(FONT_CAPTION_SM).fontColor(NEUTRAL_INK_TERTIARY).margin({ top: 2 })
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Center)
 
-      // 跳到消息中心
-      Row() {
-        Text('📥').fontSize(18)
-      }
-      .width(34).height(34).borderRadius(17)
-      .backgroundColor(this.themeBorder)
-      .justifyContent(FlexAlign.Center)
-      .onClick(() => {
-        try {
-          router.pushUrl({ url: 'pages/NotificationCenterPage' });
-        } catch (_) {}
-      })
+      Text('消息')
+        .fontSize(FONT_CAPTION)
+        .fontColor(BRAND_RED)
+        .onClick(() => {
+          try {
+            router.pushUrl({ url: 'pages/NotificationCenterPage' });
+          } catch (_) {}
+        })
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 12, bottom: 8 })
+    .padding({ left: SPACE_MD, right: SPACE_MD, top: 12, bottom: 8 })
   }
 
-  // ==================== 类型概览卡 ====================
+  // ==================== 类型概览 ====================
   @Builder
   TypeOverview() {
     Row() {
-      this.OverviewMini('🎂', '生日', this.countByType('birthday'), '#E91E63')
-      this.OverviewMini('❤️', '纪念日', this.countByType('anniversary'), '#D32F2F')
-      this.OverviewMini('💰', '缴费', this.countByType('bill'), '#F57C00')
-      this.OverviewMini('🛒', '购物', this.countByType('shopping'), '#2E7D32')
+      this.OverviewMini('生日', this.countByType('birthday'))
+      this.OverviewMini('纪念日', this.countByType('anniversary'))
+      this.OverviewMini('缴费', this.countByType('bill'))
+      this.OverviewMini('购物', this.countByType('shopping'))
     }
     .width('100%')
-    .padding({ left: 12, right: 12, bottom: 8 })
+    .padding({ left: SPACE_LG, right: SPACE_LG, top: 8, bottom: 8 })
     .justifyContent(FlexAlign.SpaceBetween)
+    .border({ width: { bottom: 0.5 }, color: DIVIDER })
   }
 
   @Builder
-  OverviewMini(icon: string, label: string, count: number, color: string) {
+  OverviewMini(label: string, count: number) {
     Column() {
-      Text(icon).fontSize(20)
-      Text(`${count}`).fontSize(18).fontWeight(FontWeight.Bold).fontColor(color).margin({ top: 2 })
-      Text(label).fontSize(10).fontColor('#666666').margin({ top: 2 })
+      Text(`${count}`)
+        .fontSize(22).fontWeight(FontWeight.Bold)
+        .fontColor(NEUTRAL_INK).fontFamily(FONT_FAMILY_SERIF)
+      Text(label)
+        .fontSize(FONT_CAPTION_SM).fontColor(NEUTRAL_INK_TERTIARY)
+        .margin({ top: 2 })
     }
     .width('23%')
-    .padding({ top: 12, bottom: 12 })
-    .borderRadius(14)
-    .backgroundColor(Color.White)
+    .padding({ top: 10, bottom: 10 })
     .alignItems(HorizontalAlign.Center)
-    .shadow({ radius: 2, color: '#0A000000', offsetX: 0, offsetY: 1 })
   }
 
   // ==================== 筛选 chip ====================
   @Builder
-  FilterChip(key: string, label: string, icon: string) {
-    Row() {
-      Text(icon).fontSize(14).margin({ right: 4 })
-      Text(label).fontSize(13)
-        .fontColor(this.activeFilter === key ? Color.White : '#666666')
-        .fontWeight(this.activeFilter === key ? FontWeight.Bold : FontWeight.Normal)
-    }
-    .backgroundColor(this.activeFilter === key ? this.themePrimary : Color.White)
-    .borderRadius(16)
-    .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-    .shadow(this.activeFilter === key
-      ? { radius: 4, color: '#33000000', offsetX: 0, offsetY: 2 }
-      : { radius: 0, color: '#00000000', offsetX: 0, offsetY: 0 })
-    .onClick(() => { this.activeFilter = key; })
+  FilterChip(key: string, label: string) {
+    Text(label)
+      .fontSize(FONT_CAPTION)
+      .fontColor(this.activeFilter === key ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+      .fontWeight(this.activeFilter === key ? FontWeight.Bold : FontWeight.Normal)
+      .padding({ left: SPACE_SM, right: SPACE_SM, top: 6, bottom: 6 })
+      .border({
+        width: { bottom: this.activeFilter === key ? 2 : 0 },
+        color: NEUTRAL_INK
+      })
+      .onClick(() => { this.activeFilter = key; })
   }
 
   // ==================== 分组标题 ====================
   @Builder
   SectionHeader(title: string, count: number) {
     Row() {
-      Text(title).fontSize(16).fontWeight(FontWeight.Bold).fontColor('#333333')
+      Text(title)
+        .fontSize(FONT_BODY_LARGE).fontWeight(FontWeight.Bold)
+        .fontColor(NEUTRAL_INK).fontFamily(FONT_FAMILY_SERIF)
       Text(`${count}`)
-        .fontSize(12).fontColor('#999999')
+        .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
         .margin({ left: 6 })
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 14, bottom: 4 })
+    .padding({ left: SPACE_LG, right: SPACE_LG, top: 14, bottom: 4 })
   }
 
   // ==================== 提醒卡片 ====================
   @Builder
   ReminderCard(r: Reminder) {
     Row() {
-      // 类型图标方块
-      Column() {
-        Text(this.getTypeMeta(r.reminderType).icon).fontSize(20)
+      if (this.isOverdue(r) && !r.isCompleted) {
+        Column().width(3).height('100%').backgroundColor(BRAND_RED)
+          .margin({ right: 12 })
       }
-      .width(44).height(44).borderRadius(12)
-      .backgroundColor(this.getTypeMeta(r.reminderType).bgColor)
-      .justifyContent(FlexAlign.Center)
-      .margin({ right: 12 })
+
+      if (getReminderIconRes(r.reminderType) !== null) {
+        Image(getReminderIconRes(r.reminderType) as Resource)
+          .width(18).height(18)
+          .fillColor(this.isOverdue(r) && !r.isCompleted ? SEMANTIC_ERROR : NEUTRAL_INK_TERTIARY)
+          .margin({ right: 12 })
+      } else {
+        Text(this.getTypeMeta(r.reminderType).icon)
+          .fontSize(18).fontColor(NEUTRAL_INK_TERTIARY)
+          .margin({ right: 12 })
+      }
 
       Column() {
         Row() {
           Text(r.title)
-            .fontSize(16).fontWeight(FontWeight.Medium)
-            .fontColor(r.isCompleted ? '#999999' : '#333333')
+            .fontSize(FONT_BODY_LARGE).fontWeight(FontWeight.Medium)
+            .fontColor(r.isCompleted ? NEUTRAL_INK_TERTIARY : NEUTRAL_INK)
             .decoration({ type: r.isCompleted ? TextDecorationType.LineThrough : TextDecorationType.None })
             .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
           if (r.isRecurring) {
-            Text('🔂')
-              .fontSize(12)
-              .margin({ left: 4 })
+            Text('重复')
+              .fontSize(FONT_CAPTION_SM)
+              .fontColor(NEUTRAL_INK_TERTIARY)
+              .margin({ left: 6 })
           }
         }
         .width('100%')
@@ -576,15 +587,16 @@ struct ReminderPage {
           Row() {
             if (r.dueTime) {
               Text(this.formatDueTime(r.dueTime))
-                .fontSize(13)
-                .fontColor(this.isOverdue(r) ? '#D32F2F' : '#888888')
+                .fontSize(FONT_CAPTION)
+                .fontColor(this.isOverdue(r) ? SEMANTIC_ERROR : NEUTRAL_INK_SECONDARY)
+                .fontFamily(FONT_FAMILY_SERIF)
             }
             if (r.dueTime && r.description) {
-              Text(' · ').fontSize(13).fontColor('#CCCCCC')
+              Text(' · ').fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
             }
             if (r.description) {
               Text(r.description)
-                .fontSize(13).fontColor('#888888')
+                .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY)
                 .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
                 .layoutWeight(1)
             }
@@ -592,35 +604,37 @@ struct ReminderPage {
           .width('100%')
           .margin({ top: 3 })
         }
+
+        if (this.recordCreatorLabel(r.creatorId) !== '') {
+          Text(this.recordCreatorLabel(r.creatorId))
+            .fontSize(FONT_CAPTION_SM)
+            .fontColor(NEUTRAL_INK_TERTIARY)
+            .margin({ top: 2 })
+        }
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
 
-      // 右侧操作（左侧 margin 防止与标题中的 🔂 重复图标贴边）
       if (r.isCompleted) {
         Text('撤销')
-          .fontSize(13).fontColor('#FF9800').backgroundColor('#FFF8E1')
-          .borderRadius(8).padding({ left: 10, right: 10, top: 4, bottom: 4 })
-          .margin({ left: 10 })
-          .onClick(() => { this.toggleComplete(r, false); })
+          .fontSize(FONT_CAPTION).fontColor(SEMANTIC_WARNING)
+          .padding({ left: 12 })
+          .border({ width: { left: 0.5 }, color: DIVIDER })
+          .onClick(() => { this.toggleCompleteAny(r, false); })
       } else {
-        Row() {
-          Text('✓').fontSize(16).fontColor(Color.White).fontWeight(FontWeight.Bold)
-        }
-        .width(32).height(32).borderRadius(16)
-        .backgroundColor(this.isOverdue(r) ? '#D32F2F' : this.themePrimary)
-        .justifyContent(FlexAlign.Center)
-        .margin({ left: 10 })
-        .onClick(() => { this.toggleComplete(r, true); })
+        Text('完成')
+          .fontSize(FONT_CAPTION)
+          .fontColor(this.isOverdue(r) ? SEMANTIC_ERROR : BRAND_RED)
+          .padding({ left: 12 })
+          .border({ width: { left: 0.5 }, color: DIVIDER })
+          .onClick(() => { this.toggleCompleteAny(r, true); })
       }
     }
     .width('100%')
-    .padding({ left: 14, right: 14, top: 12, bottom: 12 })
-    .borderRadius(14)
-    .backgroundColor(this.isOverdue(r) && !r.isCompleted ? '#FFF5F5' : Color.White)
-    .shadow({ radius: 2, color: '#0A000000', offsetX: 0, offsetY: 1 })
-    .margin({ left: 12, right: 12, top: 4, bottom: 4 })
-    .opacity(r.isCompleted ? 0.65 : 1)
+    .padding({ left: SPACE_LG, right: SPACE_LG, top: 16, bottom: 16 })
+    .border({ width: { bottom: 0.5 }, color: DIVIDER })
+    .backgroundColor(BG_PAPER)
+    .opacity(r.isCompleted ? 0.6 : 1)
     .onClick(() => {
       this.detailReminder = r;
       this.showDetail = true;
@@ -632,42 +646,24 @@ struct ReminderPage {
   }
 
   // ==================== 状态切换 ====================
-  private async toggleComplete(r: Reminder, complete: boolean): Promise<void> {
-    if (!this.isCreator(r.creatorId)) {
-      AlertDialog.show({ message: '只能操作自己创建的记录' });
-      return;
-    }
-    const now = new Date().toISOString();
-    const updated: Reminder = {
-      id: r.id, familyId: r.familyId, creatorId: r.creatorId,
-      visibility: r.visibility, visibleMembers: r.visibleMembers,
-      version: r.version + 1, createdAt: r.createdAt, updatedAt: now,
-      title: r.title, description: r.description, reminderType: r.reminderType,
-      dueTime: r.dueTime, isRecurring: r.isRecurring, recurrenceRule: r.recurrenceRule,
-      isCompleted: complete, completedAt: complete ? now : '',
-      reminderSettings: r.reminderSettings
-    };
-    await this.db.updateReminder(updated);
-    this.loadData();
-  }
-
-  /**
-   * 完成/撤销提醒——不限创建者，家庭成员均可操作
-   * （用于详情弹窗的"完成"按钮，符合 PRD：无编辑权限的成员仍可标记完成）
-   */
   private async toggleCompleteAny(r: Reminder, complete: boolean): Promise<void> {
-    const now = new Date().toISOString();
-    const updated: Reminder = {
-      id: r.id, familyId: r.familyId, creatorId: r.creatorId,
-      visibility: r.visibility, visibleMembers: r.visibleMembers,
-      version: r.version + 1, createdAt: r.createdAt, updatedAt: now,
-      title: r.title, description: r.description, reminderType: r.reminderType,
-      dueTime: r.dueTime, isRecurring: r.isRecurring, recurrenceRule: r.recurrenceRule,
-      isCompleted: complete, completedAt: complete ? now : '',
-      reminderSettings: r.reminderSettings
-    };
-    await this.db.updateReminder(updated);
-    this.loadData();
+    try {
+      const now = new Date().toISOString();
+      const updated: Reminder = {
+        id: r.id, familyId: r.familyId, creatorId: r.creatorId,
+        visibility: r.visibility, visibleMembers: r.visibleMembers,
+        version: r.version + 1, createdAt: r.createdAt, updatedAt: now,
+        title: r.title, description: r.description, reminderType: r.reminderType,
+        dueTime: r.dueTime, isRecurring: r.isRecurring, recurrenceRule: r.recurrenceRule,
+        isCompleted: complete, completedAt: complete ? now : '',
+        reminderSettings: r.reminderSettings
+      };
+      await this.db.updateReminder(updated);
+    } catch (e) {
+      console.error('[ReminderPage] toggleCompleteAny failed:', (e as Error)?.message ?? String(e));
+    } finally {
+      this.loadData();
+    }
   }
 
   private handleLongPress(r: Reminder): void {
@@ -680,9 +676,9 @@ struct ReminderPage {
       message: `「${r.title}」`,
       primaryButton: {
         value: '删除',
-        fontColor: '#D32F2F',
+        fontColor: SEMANTIC_ERROR,
         action: () => {
-          this.db.deleteReminder(r.id).then(() => { this.loadData(); });
+          this.db.deleteReminder(r.id).then(() => { this.loadData(); }).catch(() => {});
         }
       },
       secondaryButton: {
@@ -703,7 +699,7 @@ struct ReminderPage {
     this.newIsRecurring = r.isRecurring ?? false;
     this.newRecurrenceRule = r.recurrenceRule || 'yearly';
     this.newVisibility = r.visibility;
-    // 购物附加字段
+    this.newVisibleUserIds = r.visibleMembers ? [...r.visibleMembers] : [];
     if (r.reminderType === 'shopping') {
       const desc = r.description ?? '';
       if (desc.startsWith('分类:')) {
@@ -711,7 +707,6 @@ struct ReminderPage {
         this.newItemCategory = parts[0] || '';
         this.newItemQuantity = parts[1] || '';
       }
-      // 若标题等于分类名（自动派生），则清空"具体说明"输入框，避免误回显
       if (this.newTitle && this.newTitle === this.newItemCategory) {
         this.newTitle = '';
       }
@@ -727,11 +722,12 @@ struct ReminderPage {
   AddReminderOverlay() {
     Column() {
       Column() {
-        // 标题
         Row() {
           Text(this.editingReminderId ? '编辑提醒' : '新建家庭提醒')
-            .fontSize(18).fontWeight(FontWeight.Bold).layoutWeight(1)
-          Text('✕').fontSize(18).fontColor('#999999')
+            .fontSize(FONT_TITLE).fontWeight(FontWeight.Bold)
+            .fontColor(NEUTRAL_INK).fontFamily(FONT_FAMILY_SERIF)
+            .layoutWeight(1)
+          Text('✕').fontSize(18).fontColor(NEUTRAL_INK_TERTIARY)
             .onClick(() => { this.closeAddDialog(); })
         }
         .width('100%')
@@ -739,92 +735,97 @@ struct ReminderPage {
 
         Scroll() {
           Column() {
-            // —— 类型选择（在最顶端，作为分类核心）——
-            // 未选中：统一灰色底；选中：才高亮该类型主题色
-            Text('类型').fontSize(13).fontColor('#666666').width('100%').margin({ bottom: 6 })
+            Text('类型')
+              .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
+              .width('100%').margin({ bottom: 6 })
             Flex({ wrap: FlexWrap.Wrap }) {
               ForEach(REMINDER_TYPES, (t: ReminderTypeOption) => {
-                Row() {
-                  Text(t.icon).fontSize(14).margin({ right: 4 })
-                  Text(t.label).fontSize(12)
-                    .fontColor(this.newReminderType === t.type ? Color.White : '#666666')
-                    .fontWeight(this.newReminderType === t.type ? FontWeight.Bold : FontWeight.Normal)
-                }
-                .backgroundColor(this.newReminderType === t.type ? t.color : '#F5F5F5')
-                .borderRadius(14)
-                .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-                .margin(3)
-                .onClick(() => { this.newReminderType = t.type; })
+                Text(t.label)
+                  .fontSize(FONT_CAPTION)
+                  .fontColor(this.newReminderType === t.type ? Color.White : NEUTRAL_INK_SECONDARY)
+                  .fontWeight(this.newReminderType === t.type ? FontWeight.Bold : FontWeight.Normal)
+                  .backgroundColor(this.newReminderType === t.type ? NEUTRAL_INK : BG_SUBTLE)
+                  .borderRadius(0)
+                  .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+                  .margin(3)
+                  .onClick(() => { this.newReminderType = t.type; })
               }, (t: ReminderTypeOption) => t.type)
             }
             .margin({ bottom: 14 })
 
-            // —— 购物类型：分类前置 + 具体说明(选填) + 数量 ——
             if (this.newReminderType === 'shopping') {
-              // 分类（必选，grid 排布更易点选）
-              Text('分类（必选）').fontSize(13).fontColor('#666666').width('100%').margin({ bottom: 6 })
+              Text('分类（必选）')
+                .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
+                .width('100%').margin({ bottom: 6 })
               Flex({ wrap: FlexWrap.Wrap }) {
                 ForEach(SHOPPING_CATEGORIES, (cat: string) => {
-                  Row() {
-                    Text(cat)
-                      .fontSize(13)
-                      .fontColor(this.newItemCategory === cat ? Color.White : '#333333')
-                      .fontWeight(this.newItemCategory === cat ? FontWeight.Bold : FontWeight.Normal)
-                  }
-                  .backgroundColor(this.newItemCategory === cat ? '#2E7D32' : '#F0F0F0')
-                  .borderRadius(16)
-                  .padding({ left: 14, right: 14, top: 8, bottom: 8 })
-                  .margin(3)
-                  .onClick(() => { this.newItemCategory = cat; })
+                  Text(cat)
+                    .fontSize(FONT_CAPTION)
+                    .fontColor(this.newItemCategory === cat ? Color.White : NEUTRAL_INK)
+                    .fontWeight(this.newItemCategory === cat ? FontWeight.Bold : FontWeight.Normal)
+                    .backgroundColor(this.newItemCategory === cat ? NEUTRAL_INK : BG_SUBTLE)
+                    .borderRadius(0)
+                    .padding({ left: 14, right: 14, top: 8, bottom: 8 })
+                    .margin(3)
+                    .onClick(() => { this.newItemCategory = cat; })
                 }, (cat: string) => cat)
               }
               .width('100%')
               .margin({ bottom: 12 })
 
-              // 具体说明（选填，替代"标题"）
-              Text('具体说明（选填）').fontSize(13).fontColor('#666666').width('100%').margin({ bottom: 6 })
+              Text('具体说明（选填）')
+                .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
+                .width('100%').margin({ bottom: 6 })
               TextInput({ text: this.newTitle, placeholder: '如：牛奶、鸡蛋、酱油' })
-                .width('100%').padding(10).borderRadius(8)
-                .backgroundColor('#F5F5F5')
+                .width('100%').padding(10).borderRadius(0)
+                .backgroundColor(BG_SUBTLE)
                 .margin({ bottom: 12 })
                 .onChange((v: string) => { this.newTitle = v; })
 
-              // 数量（选填）
-              Text('数量（选填）').fontSize(13).fontColor('#666666').width('100%').margin({ bottom: 6 })
+              Text('数量（选填）')
+                .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
+                .width('100%').margin({ bottom: 6 })
               TextInput({ text: this.newItemQuantity, placeholder: '如：2盒、500g、1瓶' })
-                .width('100%').padding(10).borderRadius(8)
-                .backgroundColor('#F5F5F5')
+                .width('100%').padding(10).borderRadius(0)
+                .backgroundColor(BG_SUBTLE)
                 .margin({ bottom: 12 })
                 .onChange((v: string) => { this.newItemQuantity = v; })
             } else {
-              // —— 非购物类型：标题 + 描述 ——
-              Text('标题').fontSize(13).fontColor('#666666').width('100%').margin({ bottom: 6 })
+              Text('标题')
+                .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
+                .width('100%').margin({ bottom: 6 })
               TextInput({ text: this.newTitle, placeholder: this.getTitlePlaceholder() })
-                .width('100%').padding(10).borderRadius(8)
-                .backgroundColor('#F5F5F5')
+                .width('100%').padding(10).borderRadius(0)
+                .backgroundColor(BG_SUBTLE)
                 .margin({ bottom: 12 })
                 .onChange((v: string) => { this.newTitle = v; })
 
-              Text('描述').fontSize(13).fontColor('#666666').width('100%').margin({ bottom: 6 })
+              Text('描述')
+                .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
+                .width('100%').margin({ bottom: 6 })
               TextInput({ text: this.newDescription, placeholder: '补充信息（可选）' })
-                .width('100%').padding(10).borderRadius(8)
-                .backgroundColor('#F5F5F5')
+                .width('100%').padding(10).borderRadius(0)
+                .backgroundColor(BG_SUBTLE)
                 .margin({ bottom: 12 })
                 .onChange((v: string) => { this.newDescription = v; })
             }
-
-            // —— 日期 + 时间 ——
-            Text('日期与时间').fontSize(13).fontColor('#666666').width('100%').margin({ bottom: 6 })
+            Text('\u65E5\u671F\u4E0E\u65F6\u95F4')
+              .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
+              .width('100%').margin({ bottom: 6 })
             Row({ space: 8 }) {
               Row() {
-                Text('🗓️').fontSize(15).margin({ right: 6 })
-                Text(this.newDueDate || '选择日期')
-                  .fontSize(14).fontColor(this.newDueDate ? '#333333' : '#999999').layoutWeight(1)
+                Image($r('app.media.icon_clock'))
+                  .width(16).height(16)
+                  .fillColor(NEUTRAL_INK_TERTIARY)
+                  .margin({ right: 6 })
+                Text(this.newDueDate || '\u9009\u62E9\u65E5\u671F')
+                  .fontSize(FONT_BODY)
+                  .fontColor(this.newDueDate ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+                  .layoutWeight(1)
               }
               .layoutWeight(1)
-              .padding(10).borderRadius(8).backgroundColor('#F5F5F5')
+              .padding(10).borderRadius(0).backgroundColor(BG_SUBTLE)
               .onClick(() => {
-                // 编辑场景下 dialog 应以已填日期为初始值；否则展示今天
                 let initialDate: Date = new Date();
                 if (this.newDueDate) {
                   const parts = this.newDueDate.split('-');
@@ -837,7 +838,84 @@ struct ReminderPage {
                     }
                   }
                 }
-                // 使用现代 API（返回 Date 对象），避免 DatePickerResult.month 索引歧义
+                this.getUIContext().showDatePickerDialog({
+                  start: new Date('2000-01-01'),
+                  end: new Date('2099-12-31'),
+                  selected: initialDate,
+                  onDateAccept: (value: Date) => {
+                    const y = value.getFullYear();
+                    const mo = value.getMonth() + 1;
+                    const da = value.getDate();
+                    this.newDueDate = \;
+                  }
+                })
+              })
+              Row() {
+                Image($r('app.media.icon_clock'))
+                  .width(16).height(16)
+                  .fillColor(NEUTRAL_INK_TERTIARY)
+                  .margin({ right: 6 })
+                Text(this.newDueTimeValue || '\u65F6\u95F4')
+                  .fontSize(FONT_BODY)
+                  .fontColor(this.newDueTimeValue ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+                  .layoutWeight(1)
+              }
+              .layoutWeight(1)
+              .padding(10).borderRadius(0).backgroundColor(BG_SUBTLE)
+              .onClick(() => {
+                let initialTime: Date = new Date();
+                if (this.newDueTimeValue) {
+                  const parts = this.newDueTimeValue.split(':');
+                  if (parts.length === 2) {
+                    const hh = parseInt(parts[0], 10);
+                    const mm = parseInt(parts[1], 10);
+                    if (!isNaN(hh) && !isNaN(mm)) {
+                      initialTime = new Date();
+                      initialTime.setHours(hh, mm, 0, 0);
+                    }
+                  }
+                }
+                TimePickerDialog.show({
+                  selected: initialTime,
+                  useMilitaryTime: true,
+                  onAccept: (value: TimePickerResult) => {
+                    const h = value.hour as number;
+                    const min = value.minute as number;
+                    this.newDueTimeValue = \;
+                  }
+                })
+              })
+            }
+            .width('100%').margin({ bottom: 12 })
+            Text('日期与时间')
+              .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
+              .width('100%').margin({ bottom: 6 })
+            Row({ space: 8 }) {
+              Row() {
+                Image($r('app.media.icon_clock'))
+                  .width(16).height(16)
+                  .fillColor(NEUTRAL_INK_TERTIARY)
+                  .margin({ right: 6 })
+                Text(this.newDueDate || '选择日期')
+                  .fontSize(FONT_BODY)
+                  .fontColor(this.newDueDate ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+                  .layoutWeight(1)
+              }
+              .layoutWeight(1)
+              .padding(10).borderRadius(0).backgroundColor(BG_SUBTLE)
+              .onClick(() => {
+                let initialDate: Date = new Date();
+                if (this.newDueDate) {
+                  const parts = this.newDueDate.split('-');
+                  if (parts.length === 3) {
+                    const y = parseInt(parts[0], 10);
+                    const mo = parseInt(parts[1], 10);
+                    const da = parseInt(parts[2], 10);
+                    if (!isNaN(y) && !isNaN(mo) && !isNaN(da)) {
+                      initialDate = new Date(y, mo - 1, da);
+                    }
+                  }
+                }
                 this.getUIContext().showDatePickerDialog({
                   start: new Date('2000-01-01'),
                   end: new Date('2099-12-31'),
@@ -852,14 +930,18 @@ struct ReminderPage {
               })
 
               Row() {
-                Text('🕐').fontSize(15).margin({ right: 6 })
+                Image($r('app.media.icon_clock'))
+                  .width(16).height(16)
+                  .fillColor(NEUTRAL_INK_TERTIARY)
+                  .margin({ right: 6 })
                 Text(this.newDueTimeValue || '时间')
-                  .fontSize(14).fontColor(this.newDueTimeValue ? '#333333' : '#999999').layoutWeight(1)
+                  .fontSize(FONT_BODY)
+                  .fontColor(this.newDueTimeValue ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+                  .layoutWeight(1)
               }
               .layoutWeight(1)
-              .padding(10).borderRadius(8).backgroundColor('#F5F5F5')
+              .padding(10).borderRadius(0).backgroundColor(BG_SUBTLE)
               .onClick(() => {
-                // 编辑场景下，picker 应展示已填时间；否则展示当前时间
                 let initialTime: Date = new Date();
                 if (this.newDueTimeValue) {
                   const parts = this.newDueTimeValue.split(':');
@@ -885,9 +967,9 @@ struct ReminderPage {
             }
             .width('100%').margin({ bottom: 12 })
 
-            // —— 重复 ——
             Row() {
-              Text('🔂 重复提醒').fontSize(14).fontColor('#333333').layoutWeight(1)
+              Text('重复提醒')
+                .fontSize(FONT_BODY).fontColor(NEUTRAL_INK).layoutWeight(1)
               Toggle({ type: ToggleType.Switch, isOn: this.newIsRecurring })
                 .onChange((isOn: boolean) => { this.newIsRecurring = isOn; })
             }
@@ -897,10 +979,10 @@ struct ReminderPage {
               Row({ space: 6 }) {
                 ForEach(RECURRENCE_OPTIONS, (item: RecurrenceOption) => {
                   Text(item.label)
-                    .fontSize(12)
-                    .fontColor(this.newRecurrenceRule === item.rule ? Color.White : '#666666')
-                    .backgroundColor(this.newRecurrenceRule === item.rule ? this.themePrimary : '#F5F5F5')
-                    .borderRadius(10)
+                    .fontSize(FONT_CAPTION)
+                    .fontColor(this.newRecurrenceRule === item.rule ? Color.White : NEUTRAL_INK_SECONDARY)
+                    .backgroundColor(this.newRecurrenceRule === item.rule ? NEUTRAL_INK : BG_SUBTLE)
+                    .borderRadius(0)
                     .padding({ left: 10, right: 10, top: 5, bottom: 5 })
                     .onClick(() => { this.newRecurrenceRule = item.rule; })
                 }, (item: RecurrenceOption) => item.rule)
@@ -908,55 +990,100 @@ struct ReminderPage {
               .margin({ bottom: 12 })
             }
 
-            // —— 可见范围 ——
-            Text('可见范围').fontSize(13).fontColor('#666666').width('100%').margin({ bottom: 6 })
+            Text('可见范围')
+              .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
+              .width('100%').margin({ bottom: 6 })
             Row({ space: 6 }) {
               ForEach(VISIBILITY_OPTIONS, (item: VisibilityOption) => {
                 Text(item.label)
-                  .fontSize(12)
-                  .fontColor(this.newVisibility === item.vis ? Color.White : '#666666')
-                  .backgroundColor(this.newVisibility === item.vis ? this.themePrimary : '#F5F5F5')
-                  .borderRadius(12)
+                  .fontSize(FONT_CAPTION)
+                  .fontColor(this.newVisibility === item.vis ? Color.White : NEUTRAL_INK_SECONDARY)
+                  .backgroundColor(this.newVisibility === item.vis ? NEUTRAL_INK : BG_SUBTLE)
+                  .borderRadius(0)
                   .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-                  .onClick(() => { this.newVisibility = item.vis; })
+                  .onClick(() => { this.selectVisibility(item.vis); })
               }, (item: VisibilityOption) => `${item.vis}`)
             }
-            .margin({ bottom: 18 })
+            .margin({ bottom: this.newVisibility === Visibility.SELECTED ? 10 : 18 })
+
+            if (this.newVisibility === Visibility.SELECTED) {
+              if (this.getShareCandidates().length === 0) {
+                Text('家庭暂无其他成员，请先邀请家人加入，或选择家庭可见')
+                  .fontSize(FONT_CAPTION).fontColor(SEMANTIC_WARNING)
+                  .width('100%').margin({ bottom: 18 })
+              } else {
+                Text('选择可见成员（可多选，本人始终可见）')
+                  .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_TERTIARY)
+                  .width('100%').margin({ bottom: 6 })
+                Flex({ wrap: FlexWrap.Wrap }) {
+                  ForEach(this.getShareCandidates(), (m: FamilyMember) => {
+                    Text(`${m.avatar} ${m.name}`)
+                      .fontSize(FONT_CAPTION)
+                      .fontColor(this.isMemberSelected(m.userId) ? Color.White : NEUTRAL_INK_SECONDARY)
+                      .backgroundColor(this.isMemberSelected(m.userId) ? NEUTRAL_INK : BG_SUBTLE)
+                      .borderRadius(0)
+                      .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+                      .margin(3)
+                      .onClick(() => { this.toggleVisibleMember(m.userId); })
+                  }, (m: FamilyMember) => m.id)
+                }
+                .width('100%')
+                .margin({ bottom: 12 })
+              }
+            }
           }
         }
         .layoutWeight(1)
         .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
 
-        // —— 底部按钮 ——
         Row({ space: 12 }) {
           Button('取消')
-            .fontSize(14).fontColor('#666666').backgroundColor('#F0F0F0')
-            .borderRadius(20).layoutWeight(1)
+            .fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY)
+            .backgroundColor(Color.Transparent)
+            .border({ width: 0.5, color: DIVIDER })
+            .borderRadius(0).layoutWeight(1)
             .onClick(() => { this.closeAddDialog(); })
-          Button(this.editingReminderId ? '保存' : '添加')
-            .fontSize(14).fontColor(Color.White).backgroundColor(this.themePrimary)
-            .borderRadius(20).layoutWeight(1)
+          Button(this.isSavingReminder ? '保存中...' : (this.editingReminderId ? '保存' : '添加'))
+            .fontSize(FONT_BODY).fontColor(Color.White)
+            .backgroundColor(NEUTRAL_INK)
+            .borderRadius(0).layoutWeight(1)
+            .enabled(!this.isSavingReminder)
             .onClick(async () => {
-              if (this.newReminderType === 'shopping') {
-                if (!this.newItemCategory) {
-                  AlertDialog.show({ message: '请选择购物分类' });
+              if (this.isSavingReminder) return;
+              this.isSavingReminder = true;
+              try {
+                if (this.newReminderType === 'shopping') {
+                  if (!this.newItemCategory) {
+                    AlertDialog.show({ message: '请选择购物分类' });
+                    return;
+                  }
+                } else if (!this.newTitle) {
+                  AlertDialog.show({ message: '请填写标题' });
                   return;
                 }
-              } else if (!this.newTitle) {
-                AlertDialog.show({ message: '请填写标题' });
-                return;
+                if (this.newVisibility === Visibility.SELECTED && this.newVisibleUserIds.length === 0) {
+                  AlertDialog.show({
+                    title: '提示',
+                    message: this.getShareCandidates().length === 0
+                      ? '家庭暂无其他成员可共享，请先邀请家人，或选择家庭可见'
+                      : '请选择要共享的成员（可多选）'
+                  });
+                  return;
+                }
+                await this.saveReminder();
+              } finally {
+                this.isSavingReminder = false;
               }
-              await this.saveReminder();
             })
         }
         .margin({ top: 6 })
       }
       .width('92%')
       .constraintSize({ maxHeight: '85%' })
-      .padding(18)
-      .borderRadius(18)
-      .backgroundColor(Color.White)
-      .shadow({ radius: 20, color: '#33000000', offsetX: 0, offsetY: 10 })
+      .padding(20)
+      .borderRadius(0)
+      .backgroundColor(BG_CARD)
       .onClick(() => {})
     }
     .width('100%')
@@ -965,200 +1092,3 @@ struct ReminderPage {
     .justifyContent(FlexAlign.Center)
     .onClick(() => { this.closeAddDialog(); })
   }
-
-  private getTitlePlaceholder(): string {
-    const map: Record<string, string> = {
-      'birthday': '如：妈妈的生日',
-      'anniversary': '如：结婚纪念日',
-      'family': '如：家庭聚餐',
-      'bill': '如：电费缴费',
-      'shopping': '如：牛奶'
-    };
-    return map[this.newReminderType] ?? '请输入标题';
-  }
-
-  private async saveReminder(): Promise<void> {
-    const now = new Date().toISOString();
-    // 购物类型：分类必选，具体说明可选 → 标题优先使用具体说明，否则用分类名兜底
-    const effectiveTitle = this.newReminderType === 'shopping'
-      ? (this.newTitle?.trim() || this.newItemCategory || '购物项')
-      : this.newTitle;
-    const effectiveDesc = this.newReminderType === 'shopping'
-      ? `分类:${this.newItemCategory || '其他'}·${this.newItemQuantity}`
-      : this.newDescription;
-    const newDueTime = this.newDueDate ? this.newDueDate + 'T' + (this.newDueTimeValue || '00:00') : '';
-
-    if (this.editingReminderId) {
-      // 编辑场景：在「所有」reminder 中按 id 查找原记录，避免被可见性过滤掉时找不到
-      const allReminders = this.db.getReminders();
-      const existing = allReminders.find(rm => rm.id === this.editingReminderId);
-      if (!existing) {
-        console.warn('[ReminderPage] saveReminder: editing reminder not found, id=' + this.editingReminderId);
-        AlertDialog.show({ message: '原记录未找到，保存失败' });
-        return;
-      }
-      const updated: Reminder = {
-        id: existing.id, familyId: existing.familyId, creatorId: existing.creatorId,
-        visibility: this.newVisibility, visibleMembers: existing.visibleMembers,
-        version: existing.version + 1, createdAt: existing.createdAt, updatedAt: now,
-        title: effectiveTitle, description: effectiveDesc, reminderType: this.newReminderType,
-        dueTime: newDueTime,
-        isRecurring: this.newIsRecurring,
-        recurrenceRule: this.newIsRecurring ? this.newRecurrenceRule : '',
-        isCompleted: existing.isCompleted, completedAt: existing.completedAt,
-        reminderSettings: existing.reminderSettings
-      };
-      await this.db.updateReminder(updated);
-    } else {
-      const userId = this.db.getCurrentUserId();
-      const family = this.db.getCurrentFamily();
-      const reminder: Reminder = {
-        id: generateId('rm'), familyId: family?.id ?? '', creatorId: userId,
-        visibility: this.newVisibility, visibleMembers: [], version: 1,
-        createdAt: now, updatedAt: now,
-        title: effectiveTitle, description: effectiveDesc, reminderType: this.newReminderType,
-        dueTime: newDueTime,
-        isRecurring: this.newIsRecurring,
-        recurrenceRule: this.newIsRecurring ? this.newRecurrenceRule : '',
-        isCompleted: false, completedAt: '', reminderSettings: []
-      };
-      await this.db.saveReminder(reminder);
-    }
-    // 先刷新数据，再关闭弹窗，避免「关闭→重渲染→数据未更新」的视觉延迟
-    this.loadData();
-    this.closeAddDialog();
-  }
-
-  // ==================== 详情弹窗 ====================
-  @Builder
-  DetailOverlay() {
-    Column() {
-      Column() {
-        Row() {
-          Text(`${this.getTypeMeta(this.detailReminder?.reminderType ?? 'other').icon} ${this.getTypeMeta(this.detailReminder?.reminderType ?? 'other').label}`)
-            .fontSize(14)
-            .fontColor(this.getTypeMeta(this.detailReminder?.reminderType ?? 'other').color)
-            .backgroundColor(this.getTypeMeta(this.detailReminder?.reminderType ?? 'other').bgColor)
-            .borderRadius(12)
-            .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-            .layoutWeight(1)
-          Text('✕').fontSize(18).fontColor('#999999')
-            .onClick(() => { this.showDetail = false; })
-        }
-        .width('100%')
-        .margin({ bottom: 14 })
-
-        if (this.detailReminder) {
-          Text(this.detailReminder.title)
-            .fontSize(22).fontWeight(FontWeight.Bold)
-            .fontColor(this.detailReminder.isCompleted ? '#999999' : '#333333')
-            .decoration({ type: this.detailReminder.isCompleted ? TextDecorationType.LineThrough : TextDecorationType.None })
-            .width('100%').margin({ bottom: 14 })
-
-          Column({ space: 10 }) {
-            if (this.detailReminder.dueTime) {
-              this.DetailRow('🕐 时间', this.formatDueTime(this.detailReminder.dueTime))
-            }
-            if (this.detailReminder.description) {
-              this.DetailRow('📝 描述', this.detailReminder.description)
-            }
-            if (this.detailReminder.isRecurring) {
-              this.DetailRow('🔂 重复', this.getRecurrenceLabel(this.detailReminder.recurrenceRule))
-            }
-            this.DetailRow('👁 可见', this.getVisibilityLabel(this.detailReminder.visibility))
-            this.DetailRow('📌 状态', this.getDueStatus(this.detailReminder.dueTime, this.detailReminder.isCompleted))
-          }
-          .width('100%')
-          .padding(14)
-          .borderRadius(12)
-          .backgroundColor(this.themeLightBg)
-          .margin({ bottom: 16 })
-
-          Row({ space: 10 }) {
-            Button('关闭')
-              .fontSize(14).fontColor('#666666').backgroundColor('#F0F0F0')
-              .borderRadius(20).layoutWeight(1)
-              .onClick(() => { this.showDetail = false; })
-
-            // 编辑：仅创建者可见
-            if (this.isCreator(this.detailReminder.creatorId)) {
-              Button('编辑')
-                .fontSize(14).fontColor(Color.White).backgroundColor(this.themePrimary)
-                .borderRadius(20).layoutWeight(1)
-                .onClick(() => {
-                  const r = this.detailReminder!;
-                  this.showDetail = false;
-                  this.startEdit(r);
-                })
-            }
-
-            // 完成/撤销：所有家庭成员都可标记
-            Button(this.detailReminder.isCompleted ? '撤销' : '完成')
-              .fontSize(14).fontColor(Color.White)
-              .backgroundColor(this.detailReminder.isCompleted ? '#FF9800' : '#2E7D32')
-              .borderRadius(20).layoutWeight(1)
-              .onClick(async () => {
-                const r = this.detailReminder!;
-                await this.toggleCompleteAny(r, !r.isCompleted);
-                // 关闭弹窗并刷新引用
-                this.showDetail = false;
-                this.detailReminder = null;
-              })
-          }
-          .width('100%')
-        }
-      }
-      .width('92%')
-      .padding(18)
-      .borderRadius(18)
-      .backgroundColor(Color.White)
-      .shadow({ radius: 20, color: '#33000000', offsetX: 0, offsetY: 10 })
-      .onClick(() => {})
-    }
-    .width('100%')
-    .height('100%')
-    .backgroundColor('#66000000')
-    .justifyContent(FlexAlign.Center)
-    .onClick(() => { this.showDetail = false; })
-  }
-
-  @Builder
-  DetailRow(label: string, value: string) {
-    Row() {
-      Text(label).fontSize(13).fontColor('#999999').width(70)
-      Text(value).fontSize(14).fontColor('#333333').layoutWeight(1)
-    }
-    .width('100%')
-  }
-
-  // ==================== 工具 ====================
-  private isOverdue(r: Reminder): boolean {
-    if (r.isCompleted || !r.dueTime) return false;
-    return r.dueTime < new Date().toISOString();
-  }
-
-  private formatDueTime(dueTime: string): string {
-    if (!dueTime) return '';
-    if (dueTime.length <= 10) return dueTime;
-    return dueTime.slice(0, 16).replace('T', ' ');
-  }
-
-  private getRecurrenceLabel(rule: string): string {
-    const map: Record<string, string> = {
-      'daily': '每天', 'weekly': '每周', 'monthly': '每月', 'yearly': '每年'
-    };
-    return map[rule] ?? rule;
-  }
-
-  private getVisibilityLabel(v: Visibility): string {
-    if (v === Visibility.PRIVATE) return '🔒 仅自己';
-    if (v === Visibility.SELECTED) return '👥 指定成员';
-    return '👨‍👩‍👧‍👦 全家可见';
-  }
-
-  private getDueStatus(dueTime: string | undefined, isCompleted: boolean): string {
-    if (isCompleted) return '✅ 已完成';
-    if (!dueTime) return '📌 进行中';
-    return dueTime < new Date().toISOString() ? '🔴 已过期' : '🟢 待提醒';
-  }
-}

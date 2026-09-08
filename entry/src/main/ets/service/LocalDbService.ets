@@ -29,7 +29,7 @@ import { FamilyInvitation } from '../model/FamilyInvitation';
 import { AccountingRecord, Budget } from '../model/AccountingRecord';
 import { LocationPlace, PlaceType } from '../model/LocationPlace';
 import { ModuleId, ModuleVisibility, ResolvedVisibility, ThemeColor, EmojiStyle, Visibility, MemberStatus } from '../common/Constants';
-import { filterByVisibility, formatDate, isRecordCreator as isCreatorOf, toLocalDateKey } from '../common/Utils';
+import { filterByVisibility, formatDate, isRecordCreator as isCreatorOf, toLocalDateKey, defaultAvatarForRole } from '../common/Utils';
 
 const PREF_NAME = 'kabao_home_db';
 
@@ -302,7 +302,15 @@ export class LocalDbService {
   }
 
   getMembers(): FamilyMember[] {
-    return this.getList<FamilyMember>('members');
+    const list = this.getList<FamilyMember>('members');
+    // 兜底：历史数据未存 avatar（创建时从未赋值），按角色补默认 emoji，
+    // 否则成员头像 chip 渲染空白不可点（getList 每次 parse 新对象，无副作用）
+    for (const m of list) {
+      if (!m.avatar) {
+        m.avatar = defaultAvatarForRole(m.role);
+      }
+    }
+    return list;
   }
 
   getMembersByFamilyId(familyId: string): FamilyMember[] {

@@ -3,13 +3,16 @@
  * 登录已在 LoginPage 完成，此页只负责家庭的创建或加入
  * 视觉风格：编辑式卡片 + 暖色品牌渐变 + 清晰层级
  */
-import { APP_NAME, MEMBER_COLORS, MemberRole } from '../common/Constants';
+import { APP_NAME, MEMBER_COLORS, MemberRole , PAGE_TRANSITION_DURATION } from '../common/Constants';
+import { BG_PAPER, BORDER_SUBTLE, BRAND_CORAL, NEUTRAL_INK_TERTIARY, SEMANTIC_INFO, BG_SUBTLE, ERROR_BG, INFO_BG, NEUTRAL_INK, NEUTRAL_INK_SECONDARY, SEMANTIC_ERROR, SEMANTIC_SUCCESS, SEMANTIC_WARNING, WARNING_BG, MIST_PURPLE } from '../common/DesignTokens';
 import { AuthService } from '../service/AuthService';
 import { Family } from '../model/Family';
 import router from '@ohos.router';
+import { curves } from '@kit.ArkUI';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { scanCore, scanBarcode } from '@kit.ScanKit';
 import { common } from '@kit.AbilityKit';
+import { LOGIN_ROUTE_URL, buildExplicitLogoutRouteParams } from '../common/AuthNavigation';
 
 interface RoleOption {
   role: MemberRole;
@@ -35,26 +38,28 @@ struct FamilySetupPage {
   @State successMode: string = 'create';
   @State copySuccess: boolean = false;
   @State showQrCode: boolean = false;
+  @State isSubmitting: boolean = false;
   private auth: AuthService = AuthService.getInstance();
+  /** Track setTimeout IDs for cleanup on component disposal */
+  private timerIds: number[] = [];
 
   // 品牌色板
-  private readonly BRAND_PRIMARY: string = '#FF6F00';
-  private readonly BRAND_SECONDARY: string = '#FFB74D';
-  private readonly BRAND_BG_TOP: string = '#FFF8E7';
-  private readonly BRAND_BG_BOT: string = '#FAFAFA';
-  private readonly TEXT_PRIMARY: string = '#212121';
-  private readonly TEXT_SECONDARY: string = '#757575';
-  private readonly TEXT_HINT: string = '#9E9E9E';
+  private readonly BRAND_PRIMARY: string = SEMANTIC_WARNING;
+  private readonly BRAND_BG_TOP: string = BG_PAPER;
+  private readonly BRAND_BG_BOT: string = BG_PAPER;
+  private readonly TEXT_PRIMARY: string = NEUTRAL_INK;
+  private readonly TEXT_SECONDARY: string = NEUTRAL_INK_TERTIARY;
+  private readonly TEXT_HINT: string = NEUTRAL_INK_SECONDARY;
   private readonly SURFACE: string = '#FFFFFF';
-  private readonly BORDER_LIGHT: string = '#EEEEEE';
+  private readonly BORDER_LIGHT: string = BORDER_SUBTLE;
 
   private roleOptions: RoleOption[] = [
-    { role: MemberRole.DAD, label: '爸爸', emoji: '👨', color: '#1976D2' },
-    { role: MemberRole.MOM, label: '妈妈', emoji: '👩', color: '#E91E63' },
-    { role: MemberRole.GRANDPA, label: '爷爷', emoji: '👴', color: '#C62828' },
-    { role: MemberRole.GRANDMA, label: '奶奶', emoji: '👵', color: '#E65100' },
-    { role: MemberRole.CHILD, label: '孩子', emoji: '🧒', color: '#2E7D32' },
-    { role: MemberRole.OTHER, label: '其他', emoji: '🧑', color: '#6A1B9A' }
+    { role: MemberRole.DAD, label: '爸爸', emoji: '👨', color: SEMANTIC_INFO },
+    { role: MemberRole.MOM, label: '妈妈', emoji: '👩', color: BRAND_CORAL },
+    { role: MemberRole.GRANDPA, label: '爷爷', emoji: '👴', color: SEMANTIC_ERROR },
+    { role: MemberRole.GRANDMA, label: '奶奶', emoji: '👵', color: SEMANTIC_WARNING },
+    { role: MemberRole.CHILD, label: '孩子', emoji: '🧒', color: SEMANTIC_SUCCESS },
+    { role: MemberRole.OTHER, label: '其他', emoji: '🧑', color: MIST_PURPLE }
   ];
 
   aboutToAppear(): void {
@@ -82,10 +87,28 @@ struct FamilySetupPage {
     this.setupMode = '';
   }
 
+  aboutDisappear(): void {
+    // Clear all pending timers to prevent leaks and state updates after disposal
+    for (const id of this.timerIds) {
+      clearTimeout(id);
+    }
+    this.timerIds = [];
+  }
+
+  /**
+   * 系统返回键/手势拦截：交给 goBack 统一处理，避免在 replaceUrl 后栈空导致直接退出 App
+   */
+  onBackPress(): boolean {
+    this.goBack();
+    return true; // 拦截系统默认返回行为
+  }
+
   /**
    * 安全返回：根据当前子页面决定行为
    * - 子模式（create/join 等）→ 返回选择视图
-   * - 选择视图 → 退出当前登录态，回到 LoginPage（修复"返回无反应"的死循环）
+   * - 选择视图 → 退出当前登录态，回到 LoginPage 并带上 explicitLogout 参数，
+   *   让 LoginPage 跳过 silentLogin，直接展示华为账号登录界面（否则静默登录成功
+   *   会把人又踢回 FamilySetupPage，形成“返回无反应”的死循环）
    */
   private goBack(): void {
     if (this.setupMode === 'join_phone' || this.setupMode === 'claim') {
@@ -98,16 +121,20 @@ struct FamilySetupPage {
       this.errorMessage = '';
       return;
     }
-    // 在选择视图直接退到登录页：登出后跳转，避免 LoginPage 的 silentLogin 把我们又踢回来
-    this.auth.logout().then(() => {
+    // 在选择视图直接退到登录页：登出后带 explicitLogout 跳转，强制展示登录选项
+    const goLogin = (): void => {
       try {
-        router.replaceUrl({ url: 'pages/LoginPage' });
+        router.replaceUrl({ url: LOGIN_ROUTE_URL, params: buildExplicitLogoutRouteParams() });
       } catch (_) {}
-    }).catch(() => {
-      try {
-        router.replaceUrl({ url: 'pages/LoginPage' });
-      } catch (_) {}
-    });
+    };
+    this.auth.logout().then(goLogin).catch(goLogin);
+  }
+
+  pageTransition(): void {
+    PageTransitionEnter({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).slide(SlideEffect.Bottom)
+    PageTransitionExit({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).slide(SlideEffect.Bottom)
+    PageTransitionEnter({ type: RouteType.None, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).opacity(1)
+    PageTransitionExit({ type: RouteType.None, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).opacity(0)
   }
 
   build() {
@@ -186,12 +213,12 @@ struct FamilySetupPage {
         Text('⚠️').fontSize(14).margin({ right: 6 })
         Text(this.errorMessage)
           .fontSize(13)
-          .fontColor('#C62828')
+          .fontColor(SEMANTIC_ERROR)
           .layoutWeight(1)
       }
       .width('100%')
       .padding(12)
-      .backgroundColor('#FFEBEE')
+      .backgroundColor(ERROR_BG)
       .borderRadius(8)
     }
   }
@@ -210,7 +237,7 @@ struct FamilySetupPage {
         }
         .padding({ left: 14, right: 14, top: 9, bottom: 9 })
         .borderRadius(20)
-        .backgroundColor(this.selectedRole === item.role ? item.color : '#F5F5F5')
+        .backgroundColor(this.selectedRole === item.role ? item.color : BG_SUBTLE)
         .margin({ right: 8, bottom: 8 })
         .onClick(() => {
           this.selectedRole = item.role;
@@ -231,18 +258,14 @@ struct FamilySetupPage {
         Column() {
           // 品牌头部
           Column({ space: 10 }) {
-            // Logo 圆形容器
-            Stack() {
-              Column()
-                .width(96).height(96).borderRadius(48)
-                .linearGradient({
-                  angle: 135,
-                  colors: [[this.BRAND_PRIMARY, 0.0], [this.BRAND_SECONDARY, 1.0]]
-                })
-                .shadow({ radius: 18, color: '#33FF6F00', offsetX: 0, offsetY: 8 })
-              Text('🏠').fontSize(44)
-            }
-            .margin({ top: 24 })
+            // App Logo
+            Image($r('app.media.app_icon'))
+              .width(96)
+              .height(96)
+              .borderRadius(48)
+              .objectFit(ImageFit.Cover)
+              .shadow({ radius: 18, color: '#33B8862E', offsetX: 0, offsetY: 8 })
+              .margin({ top: 24 })
 
             Text(`欢迎使用 ${APP_NAME}`)
               .fontSize(24)
@@ -263,7 +286,7 @@ struct FamilySetupPage {
             Stack() {
               Column()
                 .width(54).height(54).borderRadius(16)
-                .backgroundColor('#FFE0B2')
+                .backgroundColor(WARNING_BG)
               Text('🏡').fontSize(28)
             }
             Column({ space: 4 }) {
@@ -295,7 +318,7 @@ struct FamilySetupPage {
             Stack() {
               Column()
                 .width(54).height(54).borderRadius(16)
-                .backgroundColor('#E3F2FD')
+                .backgroundColor(INFO_BG)
               Text('🤝').fontSize(28)
             }
             Column({ space: 4 }) {
@@ -463,7 +486,7 @@ struct FamilySetupPage {
 
           this.ErrorBanner()
 
-          Button('创建家庭')
+          Button(this.isSubmitting ? '创建中...' : '创建家庭')
             .width('100%')
             .height(50)
             .fontSize(16)
@@ -471,8 +494,10 @@ struct FamilySetupPage {
             .fontColor(Color.White)
             .backgroundColor(this.BRAND_PRIMARY)
             .borderRadius(25)
-            .shadow({ radius: 12, color: '#33FF6F00', offsetX: 0, offsetY: 4 })
+            .shadow({ radius: 12, color: '#33B8862E', offsetX: 0, offsetY: 4 })
+            .enabled(!this.isSubmitting)
             .onClick(async () => {
+              if (this.isSubmitting) return;
               if (!this.familyName || !this.familyName.trim()) {
                 this.errorMessage = '请填写家庭名称';
                 return;
@@ -481,6 +506,8 @@ struct FamilySetupPage {
                 this.errorMessage = '请填写你的称呼';
                 return;
               }
+              this.isSubmitting = true;
+              this.errorMessage = '';
               try {
                 const family = await this.auth.createFamily(
                   this.familyName.trim(),
@@ -494,6 +521,8 @@ struct FamilySetupPage {
                 this.setupMode = 'success';
               } catch (e) {
                 this.errorMessage = e instanceof Error ? e.message : '创建失败，请重试';
+              } finally {
+                this.isSubmitting = false;
               }
             })
 
@@ -544,7 +573,8 @@ struct FamilySetupPage {
                   .backgroundColor(Color.Transparent)
                   .height(48)
                   .padding({ left: 14, right: 14 })
-                  .type(InputType.Number)
+                  .type(InputType.Normal)
+                  .inputFilter('^\\d{0,6}$', (_value: string) => {})
                   .maxLength(6)
                   .onChange((v: string) => { this.inviteCode = v; })
               }
@@ -595,7 +625,7 @@ struct FamilySetupPage {
 
           this.ErrorBanner()
 
-          Button('加入家庭')
+          Button(this.isSubmitting ? '加入中...' : '加入家庭')
             .width('100%')
             .height(50)
             .fontSize(16)
@@ -603,8 +633,10 @@ struct FamilySetupPage {
             .fontColor(Color.White)
             .backgroundColor(this.BRAND_PRIMARY)
             .borderRadius(25)
-            .shadow({ radius: 12, color: '#33FF6F00', offsetX: 0, offsetY: 4 })
+            .shadow({ radius: 12, color: '#33B8862E', offsetX: 0, offsetY: 4 })
+            .enabled(!this.isSubmitting)
             .onClick(async () => {
+              if (this.isSubmitting) return;
               if (!this.inviteCode || this.inviteCode.length !== 6) {
                 this.errorMessage = '请输入 6 位邀请码';
                 return;
@@ -613,6 +645,8 @@ struct FamilySetupPage {
                 this.errorMessage = '请填写你的称呼';
                 return;
               }
+              this.isSubmitting = true;
+              this.errorMessage = '';
               try {
                 const family = await this.auth.joinFamilyByCode(
                   this.inviteCode,
@@ -625,10 +659,12 @@ struct FamilySetupPage {
                   this.successMode = 'join';
                   this.setupMode = 'success';
                 } else {
-                  this.errorMessage = '邀请码无效或已过期。请确认邀请码正确，或让家人在「设置-成员管理」中重新分享';
+                  this.errorMessage = '邀请码无效或已过期，请确认后重试';
                 }
               } catch (e) {
                 this.errorMessage = e instanceof Error ? e.message : '加入失败，请重试';
+              } finally {
+                this.isSubmitting = false;
               }
             })
 
@@ -777,7 +813,7 @@ struct FamilySetupPage {
             .fontColor(Color.White)
             .backgroundColor(this.BRAND_PRIMARY)
             .borderRadius(25)
-            .shadow({ radius: 12, color: '#33FF6F00', offsetX: 0, offsetY: 4 })
+            .shadow({ radius: 12, color: '#33B8862E', offsetX: 0, offsetY: 4 })
             .onClick(() => {
               this.errorMessage = 'V2 版本将支持手机号搜索加入';
             })
@@ -792,7 +828,7 @@ struct FamilySetupPage {
           .width('100%')
           .padding(12)
           .borderRadius(8)
-          .backgroundColor('#FFF8E1')
+          .backgroundColor(WARNING_BG)
 
           Column().height(20)
         }
@@ -840,7 +876,8 @@ struct FamilySetupPage {
                   .backgroundColor(Color.Transparent)
                   .height(48)
                   .padding({ left: 14, right: 14 })
-                  .type(InputType.Number)
+                  .type(InputType.Normal)
+                  .inputFilter('^\\d{0,6}$', (_value: string) => {})
                   .maxLength(6)
                   .onChange((v: string) => { this.claimToken = v; })
               }
@@ -860,20 +897,24 @@ struct FamilySetupPage {
 
           this.ErrorBanner()
 
-          Button('认领身份')
+          Button(this.isSubmitting ? '认领中...' : '认领身份')
             .width('100%')
             .height(50)
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
             .fontColor(Color.White)
-            .backgroundColor('#2E7D32')
+            .backgroundColor(SEMANTIC_SUCCESS)
             .borderRadius(25)
-            .shadow({ radius: 12, color: '#332E7D32', offsetX: 0, offsetY: 4 })
+            .shadow({ radius: 12, color: '#333D6B5C', offsetX: 0, offsetY: 4 })
+            .enabled(!this.isSubmitting)
             .onClick(async () => {
+              if (this.isSubmitting) return;
               if (!this.claimToken || this.claimToken.length !== 6) {
                 this.errorMessage = '请输入 6 位认领码';
                 return;
               }
+              this.isSubmitting = true;
+              this.errorMessage = '';
               try {
                 const member = await this.auth.claimMemberByToken(this.claimToken);
                 if (member) {
@@ -883,10 +924,12 @@ struct FamilySetupPage {
                   this.successMode = 'claim';
                   this.setupMode = 'success';
                 } else {
-                  this.errorMessage = '认领码无效或已过期。请让家人在「设置-成员管理」中重新添加并获取认领码';
+                  this.errorMessage = '认领码无效或已过期，请确认后重试';
                 }
               } catch (e) {
                 this.errorMessage = e instanceof Error ? e.message : '认领失败，请重试';
+              } finally {
+                this.isSubmitting = false;
               }
             })
 
@@ -901,7 +944,7 @@ struct FamilySetupPage {
             .width('100%')
             .padding(12)
             .borderRadius(8)
-            .backgroundColor('#FFF8E1')
+            .backgroundColor(WARNING_BG)
 
             Row() {
               Text('或者直接用家庭邀请码加入')
@@ -945,9 +988,9 @@ struct FamilySetupPage {
               .width(120).height(120).borderRadius(60)
               .linearGradient({
                 angle: 135,
-                colors: [['#FFE0B2', 0.0], ['#FFCC80', 1.0]]
+                colors: [[WARNING_BG, 0.0], [WARNING_BG, 1.0]]
               })
-              .shadow({ radius: 24, color: '#33FF6F00', offsetX: 0, offsetY: 10 })
+              .shadow({ radius: 24, color: '#33B8862E', offsetX: 0, offsetY: 10 })
             Text('🎉').fontSize(60)
           }
           .margin({ top: 24, bottom: 18 })
@@ -1016,7 +1059,7 @@ struct FamilySetupPage {
                   .fontSize(14)
                   .fontWeight(FontWeight.Medium)
                   .fontColor(this.copySuccess ? this.BRAND_PRIMARY : Color.White)
-                  .backgroundColor(this.copySuccess ? '#FFF3E0' : this.BRAND_PRIMARY)
+                  .backgroundColor(this.copySuccess ? WARNING_BG : this.BRAND_PRIMARY)
                   .borderRadius(20)
                   .layoutWeight(1)
                   .height(40)
@@ -1026,7 +1069,8 @@ struct FamilySetupPage {
                       const systemPasteboard = pasteboard.getSystemPasteboard();
                       await systemPasteboard.setData(pasteData);
                       this.copySuccess = true;
-                      setTimeout(() => { this.copySuccess = false; }, 2000);
+                      const id = setTimeout(() => { this.copySuccess = false; }, 2000);
+                      this.timerIds.push(id);
                     } catch (_) {}
                   })
                 Button('分享二维码')
@@ -1054,32 +1098,33 @@ struct FamilySetupPage {
               .fontColor(this.TEXT_HINT)
               .margin({ top: 12 })
           }
-
-          Column().height(28)
-
-          Button(`进入 ${APP_NAME}`)
-            .width('100%')
-            .height(50)
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(Color.White)
-            .backgroundColor(this.BRAND_PRIMARY)
-            .borderRadius(25)
-            .shadow({ radius: 12, color: '#33FF6F00', offsetX: 0, offsetY: 4 })
-            .onClick(() => {
-              try {
-                router.replaceUrl({ url: 'pages/Index' });
-              } catch (_) {}
-            })
-
-          Column().height(24)
         }
         .width('100%')
         .alignItems(HorizontalAlign.Center)
-        .padding({ left: 20, right: 20 })
+        .padding({ left: 20, right: 20, bottom: 8 })
       }
       .layoutWeight(1)
       .scrollBar(BarState.Off)
+
+      // 底部固定按钮区域
+      Column() {
+        Button(`进入 ${APP_NAME}`)
+          .width('100%')
+          .height(50)
+          .fontSize(16)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Color.White)
+          .backgroundColor(this.BRAND_PRIMARY)
+          .borderRadius(25)
+          .shadow({ radius: 12, color: '#33B8862E', offsetX: 0, offsetY: 4 })
+          .onClick(() => {
+            try {
+              router.replaceUrl({ url: 'pages/Index' });
+            } catch (_) {}
+          })
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 12, bottom: 36 })
     }
     .width('100%')
     .height('100%')
@@ -1127,7 +1172,7 @@ struct FamilySetupPage {
             QRCode(this.generatedInviteCode)
               .width(200)
               .height(200)
-              .color('#333333')
+              .color(NEUTRAL_INK)
               .backgroundColor(Color.White)
           }
           .width(220)

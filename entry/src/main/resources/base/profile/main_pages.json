@@ -1,7 +1,7 @@
 {
   "src": [
-    "pages/Index",
     "pages/LoginPage",
+    "pages/Index",
     "pages/PeriodPage",
     "pages/HealthPage",
     "pages/KidsPage",
@@ -15,6 +15,7 @@
     "pages/SettingsPage",
     "pages/AccountingPage",
     "pages/PreviewPage",
-    "pages/MapPickerPage"
+    "pages/MapPickerPage",
+    "pages/IconPreviewPage"
   ]
 }

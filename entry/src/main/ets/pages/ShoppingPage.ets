@@ -1,10 +1,18 @@
 /**
  * 卡宝Home - 购物清单页面
+ * 设计：Direction C · 极简编辑风（纸白底 + 墨黑正文 + flat 分隔线）
  */
 import { ShoppingItem, SHOPPING_CATEGORIES } from '../model/ShoppingItem';
 import { LocalDbService } from '../service/LocalDbService';
 import { EmptyState } from '../components/EmptyState';
-import { Visibility, FontSizeMode, THEME_PALETTES } from '../common/Constants';
+import { FontSizeMode, PAGE_TRANSITION_DURATION, ModuleId } from '../common/Constants';
+import {
+  BG_PAPER, BG_CARD, BG_SUBTLE, DIVIDER,
+  NEUTRAL_INK, NEUTRAL_INK_SECONDARY, NEUTRAL_INK_TERTIARY,
+  SEMANTIC_ERROR,
+  FONT_BODY, FONT_BODY_LARGE, FONT_CAPTION, FONT_TITLE,
+  FONT_FAMILY_SERIF, SPACE_MD, SPACE_LG, getModuleIconRes
+} from '../common/DesignTokens';
 import { FamilyViewModel } from '../viewmodel/FamilyViewModel';
 import { generateId } from '../common/Utils';
 import router from '@ohos.router';
@@ -15,50 +23,62 @@ struct ShoppingPage {
   @State items: ShoppingItem[] = [];
   @State selectedCategory: string = '';
   @State showAddDialog: boolean = false;
+  @State isSavingItem: boolean = false;
   @State newItemName: string = '';
   @State newItemCategory: string = '其他';
   @State newItemQuantity: string = '';
   @State isLargeFont: boolean = false;
   @State editingItemId: string = '';
-  @State fontSize: number = 16;
-  @State titleFontSize: number = 20;
-  @State themeLightBg: string = '#FFF5F0';
-  @State themePrimary: string = '#E8654A';
-  @State themeBorder: string = '#FFD4C2';
+  @State fontSize: number = FONT_BODY_LARGE;
+  @State titleFontSize: number = FONT_TITLE;
 
   private db: LocalDbService = LocalDbService.getInstance();
   private familyVm: FamilyViewModel = new FamilyViewModel();
 
   private isCreator(creatorId: string): boolean {
-    return creatorId === this.db.getCurrentUserId();
+    return this.db.isRecordCreator(creatorId);
   }
 
   aboutToAppear(): void {
     this.items = this.db.getShoppingItems();
     const member = this.familyVm.getCurrentMember();
     this.isLargeFont = member?.fontSizeMode === FontSizeMode.LARGE;
-    const palette = THEME_PALETTES.find(p => p.id === this.db.getThemeColor()) ?? THEME_PALETTES[0];
-    this.themeLightBg = palette.lightBg;
-    this.themePrimary = palette.primary;
-    this.themeBorder = palette.border;
     if (this.isLargeFont) {
       this.fontSize = 20;
       this.titleFontSize = 24;
     }
   }
 
+  pageTransition(): void {
+    PageTransitionEnter({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).slide(SlideEffect.Right)
+    PageTransitionExit({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).slide(SlideEffect.Left)
+    PageTransitionEnter({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).slide(SlideEffect.Left)
+    PageTransitionExit({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).slide(SlideEffect.Right)
+  }
+
   build() {
     Column() {
+      // —— 顶栏 ——
       Row() {
+        Image($r('app.media.icon_back'))
+          .width(24).height(24).fillColor(NEUTRAL_INK)
+          .onClick(() => { router.back(); })
+
         Row() {
-          Text('<')
-            .fontSize(22).fontWeight(FontWeight.Bold).fontColor(this.themePrimary)
-        }.width(34).height(34).borderRadius(17)
-        .backgroundColor(this.themeBorder)
+          Image(getModuleIconRes('shopping'))
+            .width(20).height(20).fillColor(NEUTRAL_INK)
+          Text('购物清单')
+            .fontSize(this.titleFontSize)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(NEUTRAL_INK)
+            .fontFamily(FONT_FAMILY_SERIF)
+            .margin({ left: 8 })
+        }
+        .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
-        .onClick(() => { router.back(); })
-        Text('🛒 购物清单').fontSize(this.titleFontSize).fontWeight(FontWeight.Bold).layoutWeight(1).textAlign(TextAlign.Center)
-        Row() { Text('+').fontSize(20).fontColor(Color.White).fontWeight(FontWeight.Bold) }.width(32).height(32).borderRadius(16).backgroundColor(this.themePrimary).justifyContent(FlexAlign.Center)
+
+        Text('+')
+          .fontSize(20).fontWeight(FontWeight.Bold).fontColor(NEUTRAL_INK)
           .onClick(() => {
             this.editingItemId = '';
             this.resetForm();
@@ -66,42 +86,45 @@ struct ShoppingPage {
           })
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 8 })
+      .padding({ left: SPACE_MD, right: SPACE_MD, top: 12, bottom: 8 })
 
-      // 分类筛选
+      // —— 分类筛选（text-only with underline）——
       Scroll() {
-        Row({ space: 6 }) {
+        Row({ space: 24 }) {
           Text('全部')
-            .fontSize(13)
-            .fontColor(this.selectedCategory === '' ? Color.White : '#666666')
-            .backgroundColor(this.selectedCategory === '' ? '#2E7D32' : '#F5F5F5')
-            .borderRadius(12)
-            .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+            .fontSize(FONT_CAPTION)
+            .fontColor(this.selectedCategory === '' ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+            .fontWeight(this.selectedCategory === '' ? FontWeight.Bold : FontWeight.Normal)
+            .border({ width: { bottom: this.selectedCategory === '' ? 2 : 0 }, color: NEUTRAL_INK })
+            .padding({ bottom: 4 })
             .onClick(() => { this.selectedCategory = ''; })
           ForEach(SHOPPING_CATEGORIES, (cat: string) => {
             Text(cat)
-              .fontSize(13)
-              .fontColor(this.selectedCategory === cat ? Color.White : '#666666')
-              .backgroundColor(this.selectedCategory === cat ? '#2E7D32' : '#F5F5F5')
-              .borderRadius(12)
-              .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+              .fontSize(FONT_CAPTION)
+              .fontColor(this.selectedCategory === cat ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+              .fontWeight(this.selectedCategory === cat ? FontWeight.Bold : FontWeight.Normal)
+              .border({ width: { bottom: this.selectedCategory === cat ? 2 : 0 }, color: NEUTRAL_INK })
+              .padding({ bottom: 4 })
               .onClick(() => { this.selectedCategory = cat; })
           }, (cat: string) => cat)
         }
       }
       .scrollable(ScrollDirection.Horizontal)
+      .scrollBar(BarState.Off)
       .width('100%')
-      .padding({ left: 16, right: 16, bottom: 8 })
+      .padding({ left: SPACE_MD, right: SPACE_MD, bottom: 8 })
 
-      // 统计
+      // —— 统计 ——
       Row() {
-        Text(`待买 ${this.getPendingCount()} 项`).fontSize(16).fontColor('#2E7D32').layoutWeight(1)
-        Text(`已买 ${this.getPurchasedCount()} 项`).fontSize(16).fontColor('#999999')
+        Text(`待买 ${this.getPendingCount()} 项`)
+          .fontSize(FONT_BODY).fontColor(NEUTRAL_INK).layoutWeight(1)
+        Text(`已买 ${this.getPurchasedCount()} 项`)
+          .fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY)
       }
       .width('100%')
-      .padding({ left: 16, right: 16, bottom: 8 })
+      .padding({ left: SPACE_MD, right: SPACE_MD, bottom: 8 })
 
-      // 购物列表
+      // —— 购物列表 ——
       Scroll() {
         if (this.items.length === 0) {
           EmptyState({
@@ -109,7 +132,7 @@ struct ShoppingPage {
             title: '购物清单为空',
             subtitle: '添加需要购买的物品',
             actionText: '+ 添加物品',
-            buttonColor: this.themePrimary,
+            buttonColor: NEUTRAL_INK,
             onAction: () => {
               this.editingItemId = '';
               this.resetForm();
@@ -117,46 +140,65 @@ struct ShoppingPage {
             }
           })
         } else {
-          Column({ space: 8 }) {
+          Column({ space: 0 }) {
             // 待买
             if (this.getPendingItems().length > 0) {
-              Text('📝 待买').fontSize(17).fontWeight(FontWeight.Bold).fontColor('#333333').width('100%')
+              this.SectionTitle('待买')
               ForEach(this.getPendingItems(), (item: ShoppingItem) => {
                 this.ShoppingItemRow(item)
-              }, (item: ShoppingItem) => item.id)
+              }, (item: ShoppingItem) => item.id + '_' + item.updatedAt)
             }
 
             // 已买
             if (this.getPurchasedItems().length > 0) {
-              Text('✅ 已买').fontSize(17).fontWeight(FontWeight.Bold).fontColor('#999999').width('100%').margin({ top: 8 })
+              this.SectionTitle('已买')
               ForEach(this.getPurchasedItems(), (item: ShoppingItem) => {
                 this.ShoppingItemRow(item)
-              }, (item: ShoppingItem) => item.id)
+              }, (item: ShoppingItem) => item.id + '_' + item.updatedAt)
             }
 
-            Button('+ 添加物品')
-              .fontSize(16).fontColor(Color.White).backgroundColor(this.themePrimary)
-              .borderRadius(20).width('100%').margin({ top: 8 })
+            // 底部添加按钮
+            Text('+ 添加物品')
+              .fontSize(FONT_BODY)
+              .fontColor(Color.White)
+              .fontWeight(FontWeight.Bold)
+              .width('100%')
+              .textAlign(TextAlign.Center)
+              .padding({ top: 14, bottom: 14 })
+              .backgroundColor(NEUTRAL_INK)
+              .margin({ top: 16 })
               .onClick(() => {
                 this.editingItemId = '';
                 this.resetForm();
                 this.showAddDialog = true;
               })
           }
-          .padding(16)
+          .padding({ left: SPACE_MD, right: SPACE_MD })
           .width('100%')
           .alignItems(HorizontalAlign.Start)
         }
       }
       .layoutWeight(1)
+      .edgeEffect(EdgeEffect.Spring)
       .align(Alignment.TopStart)
     }
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Start)
     .alignItems(HorizontalAlign.Start)
-    .backgroundColor(this.themeLightBg)
+    .backgroundColor(BG_PAPER)
     .bindContentCover(this.showAddDialog, this.AddItemDialog())
+  }
+
+  @Builder
+  SectionTitle(title: string) {
+    Text(title)
+      .fontSize(FONT_BODY_LARGE)
+      .fontWeight(FontWeight.Bold)
+      .fontColor(NEUTRAL_INK)
+      .fontFamily(FONT_FAMILY_SERIF)
+      .width('100%')
+      .padding({ top: 16, bottom: 8 })
   }
 
   @Builder
@@ -182,24 +224,27 @@ struct ShoppingPage {
 
       Column() {
         Text(item.itemName)
-          .fontSize(18)
-          .fontColor(item.isPurchased ? '#999999' : '#333333')
+          .fontSize(this.fontSize)
+          .fontColor(item.isPurchased ? NEUTRAL_INK_TERTIARY : NEUTRAL_INK)
           .decoration({ type: item.isPurchased ? TextDecorationType.LineThrough : TextDecorationType.None })
         if (item.quantity) {
-          Text(item.quantity).fontSize(15).fontColor('#999999').margin({ top: 3 })
+          Text(item.quantity)
+            .fontSize(FONT_CAPTION)
+            .fontColor(NEUTRAL_INK_TERTIARY)
+            .margin({ top: 3 })
         }
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
 
+      // Right: text-only, no bg pill
       Text(item.category)
-        .fontSize(14).fontColor('#2E7D32').backgroundColor('#E8F5E9')
-        .borderRadius(8).padding({ left: 10, right: 10, top: 3, bottom: 3 })
+        .fontSize(FONT_CAPTION)
+        .fontColor(NEUTRAL_INK_TERTIARY)
     }
     .width('100%')
-    .padding({ left: 14, right: 14, top: 12, bottom: 12 })
-    .borderRadius(10)
-    .backgroundColor(Color.White)
+    .padding({ top: 12, bottom: 12 })
+    .border({ width: { bottom: 0.5 }, color: DIVIDER })
     .opacity(item.isPurchased ? 0.6 : 1)
     .onClick(() => {
       if (this.isCreator(item.creatorId)) {
@@ -232,6 +277,7 @@ struct ShoppingPage {
               },
               secondaryButton: {
                 value: '删除',
+                fontColor: SEMANTIC_ERROR,
                 action: async () => {
                   await this.db.deleteShoppingItem(item.id);
                   this.items = this.db.getShoppingItems();
@@ -247,97 +293,132 @@ struct ShoppingPage {
   AddItemDialog() {
     if (this.showAddDialog) {
       Column() {
-        Text(this.editingItemId ? '编辑物品' : '添加购物物品')
-          .fontSize(18).fontWeight(FontWeight.Bold).margin({ bottom: 16 })
+        Column() {
+          Text(this.editingItemId ? '编辑物品' : '添加购物物品')
+            .fontSize(FONT_TITLE)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(NEUTRAL_INK)
+            .fontFamily(FONT_FAMILY_SERIF)
+            .width('100%')
+            .margin({ bottom: 16 })
 
-        TextInput({ placeholder: '物品名称（如：牛奶）', text: this.newItemName })
-          .width('100%').padding(10).borderRadius(8).margin({ bottom: 8 })
-          .onChange((v: string) => { this.newItemName = v; })
+          Text('名称')
+            .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 4 })
+          TextInput({ placeholder: '物品名称（如：牛奶）', text: this.newItemName })
+            .fontSize(FONT_BODY)
+            .width('100%').padding(10).borderRadius(0)
+            .backgroundColor(BG_SUBTLE)
+            .margin({ bottom: 12 })
+            .onChange((v: string) => { this.newItemName = v; })
 
-        // 分类选择
-        Text('分类').fontSize(13).fontColor('#999999').width('100%').margin({ bottom: 4 })
-        Scroll() {
-          Row({ space: 6 }) {
-            ForEach(SHOPPING_CATEGORIES, (cat: string) => {
-              Text(cat)
-                .fontSize(12)
-                .fontColor(this.newItemCategory === cat ? Color.White : '#666666')
-                .backgroundColor(this.newItemCategory === cat ? '#2E7D32' : '#F5F5F5')
-                .borderRadius(12)
-                .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-                .onClick(() => { this.newItemCategory = cat; })
-            }, (cat: string) => cat)
+          Text('分类')
+            .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 4 })
+          Scroll() {
+            Row({ space: 12 }) {
+              ForEach(SHOPPING_CATEGORIES, (cat: string) => {
+                Text(cat)
+                  .fontSize(FONT_CAPTION)
+                  .fontColor(this.newItemCategory === cat ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+                  .fontWeight(this.newItemCategory === cat ? FontWeight.Bold : FontWeight.Normal)
+                  .border({ width: { bottom: this.newItemCategory === cat ? 2 : 0 }, color: NEUTRAL_INK })
+                  .padding({ bottom: 4 })
+                  .onClick(() => { this.newItemCategory = cat; })
+              }, (cat: string) => cat)
+            }
           }
-        }
-        .scrollable(ScrollDirection.Horizontal)
-        .width('100%')
-        .margin({ bottom: 8 })
+          .scrollable(ScrollDirection.Horizontal)
+          .scrollBar(BarState.Off)
+          .width('100%')
+          .margin({ bottom: 12 })
 
-        TextInput({ placeholder: '数量（如：2盒，可选）', text: this.newItemQuantity })
-          .width('100%').padding(10).borderRadius(8).margin({ bottom: 12 })
-          .onChange((v: string) => { this.newItemQuantity = v; })
+          Text('数量')
+            .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 4 })
+          TextInput({ placeholder: '数量（如：2盒，可选）', text: this.newItemQuantity })
+            .fontSize(FONT_BODY)
+            .width('100%').padding(10).borderRadius(0)
+            .backgroundColor(BG_SUBTLE)
+            .margin({ bottom: 16 })
+            .onChange((v: string) => { this.newItemQuantity = v; })
 
-        Row({ space: 12 }) {
-          Button('取消')
-            .fontSize(14).fontColor('#666666').backgroundColor('#F0F0F0')
-            .borderRadius(20).layoutWeight(1)
-            .onClick(() => {
-              this.showAddDialog = false;
-              this.editingItemId = '';
-              this.resetForm();
-            })
-          Button(this.editingItemId ? '保存' : '添加')
-            .fontSize(14).fontColor(Color.White).backgroundColor(this.themePrimary)
-            .borderRadius(20).layoutWeight(1)
-            .onClick(async () => {
-              if (!this.newItemName) return;
-              const now = new Date().toISOString();
-              if (this.editingItemId) {
-                const existing = this.items.find(i => i.id === this.editingItemId);
-                if (existing) {
-                  const updated: ShoppingItem = {
-                    id: existing.id, familyId: existing.familyId, creatorId: existing.creatorId,
-                    visibility: existing.visibility, visibleMembers: existing.visibleMembers,
-                    version: existing.version + 1, createdAt: existing.createdAt, updatedAt: now,
-                    itemName: this.newItemName, category: this.newItemCategory, quantity: this.newItemQuantity,
-                    isPurchased: existing.isPurchased,
-                    purchasedAt: existing.purchasedAt, purchasedBy: existing.purchasedBy
-                  };
-                  await this.db.updateShoppingItem(updated);
+          Row({ space: 12 }) {
+            Button('取消')
+              .fontSize(FONT_BODY)
+              .fontColor(NEUTRAL_INK_SECONDARY)
+              .backgroundColor(Color.Transparent)
+              .border({ width: 1, color: DIVIDER })
+              .borderRadius(0)
+              .layoutWeight(1)
+              .onClick(() => {
+                this.showAddDialog = false;
+                this.editingItemId = '';
+                this.resetForm();
+              })
+            Button(this.isSavingItem ? '保存中...' : (this.editingItemId ? '保存' : '添加'))
+              .fontSize(FONT_BODY)
+              .fontColor(Color.White)
+              .backgroundColor(NEUTRAL_INK)
+              .borderRadius(0)
+              .layoutWeight(1)
+              .enabled(!this.isSavingItem)
+              .onClick(async () => {
+                if (this.isSavingItem) return;
+                this.isSavingItem = true;
+                try {
+                  if (!this.newItemName) return;
+                  const now = new Date().toISOString();
+                  if (this.editingItemId) {
+                    const existing = this.items.find(i => i.id === this.editingItemId);
+                    if (existing) {
+                      const updated: ShoppingItem = {
+                        id: existing.id, familyId: existing.familyId, creatorId: existing.creatorId,
+                        visibility: existing.visibility, visibleMembers: existing.visibleMembers,
+                        version: existing.version + 1, createdAt: existing.createdAt, updatedAt: now,
+                        itemName: this.newItemName, category: this.newItemCategory, quantity: this.newItemQuantity,
+                        isPurchased: existing.isPurchased,
+                        purchasedAt: existing.purchasedAt, purchasedBy: existing.purchasedBy
+                      };
+                      await this.db.updateShoppingItem(updated);
+                    }
+                  } else {
+                    const family = this.db.getCurrentFamily();
+                    const resolvedVis = this.db.resolveModuleVisibilityForRecord(ModuleId.SHOPPING);
+                    const item: ShoppingItem = {
+                      id: generateId('si'),
+                      familyId: family?.id ?? '',
+                      creatorId: this.db.getCurrentMemberId(),
+                      visibility: resolvedVis.visibility,
+                      visibleMembers: resolvedVis.visibleMembers,
+                      version: 1,
+                      createdAt: now,
+                      updatedAt: now,
+                      itemName: this.newItemName,
+                      category: this.newItemCategory,
+                      quantity: this.newItemQuantity,
+                      isPurchased: false,
+                      purchasedBy: '',
+                      purchasedAt: ''
+                    };
+                    await this.db.saveShoppingItem(item);
+                  }
+                  this.showAddDialog = false;
+                  this.editingItemId = '';
+                  this.resetForm();
+                  this.items = this.db.getShoppingItems();
+                } finally {
+                  this.isSavingItem = false;
                 }
-              } else {
-                const userId = this.db.getCurrentUserId();
-                const family = this.db.getCurrentFamily();
-                const item: ShoppingItem = {
-                  id: generateId('si'),
-                  familyId: family?.id ?? '',
-                  creatorId: userId,
-                  visibility: Visibility.PRIVATE,
-                  visibleMembers: [],
-                  version: 1,
-                  createdAt: now,
-                  updatedAt: now,
-                  itemName: this.newItemName,
-                  category: this.newItemCategory,
-                  quantity: this.newItemQuantity,
-                  isPurchased: false,
-                  purchasedBy: '',
-                  purchasedAt: ''
-                };
-                await this.db.saveShoppingItem(item);
-              }
-              this.showAddDialog = false;
-              this.editingItemId = '';
-              this.resetForm();
-              this.items = this.db.getShoppingItems();
-            })
+              })
+          }
+          .width('100%')
         }
+        .width('90%')
+        .padding(20)
+        .backgroundColor(BG_CARD)
       }
-      .width('90%')
-      .padding(20)
-      .borderRadius(16)
-      .backgroundColor(Color.White)
-      .shadow({ radius: 20, color: '#33000000', offsetX: 0, offsetY: 10 })
+      .width('100%')
+      .height('100%')
+      .backgroundColor('rgba(0,0,0,0.5)')
+      .justifyContent(FlexAlign.Center)
     }
   }
 

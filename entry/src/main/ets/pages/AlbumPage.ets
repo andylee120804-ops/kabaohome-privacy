@@ -1,26 +1,40 @@
 /**
  * 卡宝Home - 家庭相册页面
+ * 设计：Direction C · 极简编辑风（纸白底 + 墨黑正文 + flat 分隔线）
  * 照片选择 + 事件归档 + 成员筛选 + 时间线展示
  */
 import { Photo } from '../model/Photo';
 import { PhotoComment } from '../model/PhotoComment';
-import { BG_PAPER, BG_SUBTLE, BORDER_CORAL, BORDER_SUBTLE, NEUTRAL_INK, NEUTRAL_INK_SECONDARY, SEMANTIC_ERROR, SEMANTIC_INFO } from '../common/DesignTokens';
+import {
+  BG_PAPER, BG_CARD, BG_SUBTLE, DIVIDER, BORDER_SUBTLE,
+  NEUTRAL_INK, NEUTRAL_INK_SECONDARY, NEUTRAL_INK_TERTIARY,
+  BRAND_RED, BRAND_RED_LG, SEMANTIC_ERROR, SEMANTIC_INFO,
+  FONT_BODY, FONT_BODY_LARGE, FONT_CAPTION, FONT_CAPTION_SM, FONT_TITLE,
+  FONT_FAMILY_SERIF, SPACE_MD, SPACE_LG, getModuleIconRes
+} from '../common/DesignTokens';
 import { LocalDbService } from '../service/LocalDbService';
 import { CloudService } from '../service/CloudService';
+import { AuthService } from '../service/AuthService';
 import { EmptyState } from '../components/EmptyState';
 import { FamilyMember } from '../model/FamilyMember';
 import { FamilyViewModel } from '../viewmodel/FamilyViewModel';
-import { FontSizeMode, THEME_PALETTES , PAGE_TRANSITION_DURATION, ModuleId } from '../common/Constants';
+import { FontSizeMode, PAGE_TRANSITION_DURATION, ModuleId } from '../common/Constants';
 import { generateId, toDateAtLocalMidnight, formatIsoToLocal, toLocalDateKey } from '../common/Utils';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { fileIo, fileUri } from '@kit.CoreFileKit';
+import { image } from '@kit.ImageKit';
 import { common } from '@kit.AbilityKit';
 import router from '@ohos.router';
-import { curves, promptAction } from '@kit.ArkUI';
+import { promptAction } from '@kit.ArkUI';
 
 interface TagOption {
   tag: string;
   label: string;
+}
+
+interface ImageSize {
+  width: number;
+  height: number;
 }
 
 @Entry
@@ -29,6 +43,9 @@ struct AlbumPage {
   @State photos: Photo[] = [];
   @State familyMembers: FamilyMember[] = [];
   @State selectedMemberFilter: string = '';
+  @State isRefreshing: boolean = false;
+  @State showFullscreenZoom: boolean = false;
+  @State zoomScale: number = 1;
   @State showAddDialog: boolean = false;
   @State isSavingPhoto: boolean = false;
   @State newDescription: string = '';
@@ -41,12 +58,12 @@ struct AlbumPage {
   @State editTag: string = '';
   @State isSavingEdit: boolean = false;
   @State isLargeFont: boolean = false;
-  @State fontSize: number = 16;
-  @State titleFontSize: number = 20;
-  @State themePrimary: string = SEMANTIC_INFO;
-  @State themeBorder: string = BORDER_CORAL;
-  @State themeLightBg: string = BG_PAPER;
-  @State currentViewMode: number = 0; // 0=网格 1=按日期 2=按标签
+  @State fontSize: number = FONT_BODY_LARGE;
+  @State titleFontSize: number = FONT_TITLE;
+  @State currentViewMode: number = 0;
+  @State isFamilyOwner: boolean = false;
+  @State compactGroups: boolean = false;
+  private wallBusy: string = '';
   @State viewerLikes: PhotoComment[] = [];
   @State viewerComments: PhotoComment[] = [];
   @State viewerLikedByMe: boolean = false;
@@ -74,23 +91,19 @@ struct AlbumPage {
   aboutToAppear(): void {
     this.photos = this.db.getPhotos();
     this.familyMembers = this.familyVm.getFamilyMembers();
+    this.isFamilyOwner = AuthService.getInstance().isCreator();
+    this.compactGroups = this.db.getSetting('album_compact_groups', false);
     const member = this.familyVm.getCurrentMember();
     this.isLargeFont = member?.fontSizeMode === FontSizeMode.LARGE;
-    const palette = THEME_PALETTES.find(p => p.id === this.db.getThemeColor()) ?? THEME_PALETTES[0];
-    this.themePrimary = palette.primary;
-    this.themeBorder = palette.border;
-    this.themeLightBg = palette.lightBg;
     if (this.isLargeFont) {
       this.fontSize = 20;
       this.titleFontSize = 24;
     }
-    // 补传未上云的照片（离线保存的 + 历史本地路径记录自愈），有补传则刷新列表
     CloudService.getInstance().syncPendingPhotoUploads().then((count: number) => {
       if (count > 0) {
         this.photos = this.db.getPhotos();
       }
     });
-    // 主动拉取云端照片和互动并合并，其他成员新传的照片/点赞评论无需等全局同步（5分钟节流）即可显示
     const family = this.db.getCurrentFamily();
     if (family) {
       CloudService.getInstance().pullPhotos(family.id).then((merged: number) => {
@@ -104,11 +117,24 @@ struct AlbumPage {
     }
   }
 
-  /**
-   * 把照片路径转成 Image 可加载的 src
-   * ArkUI Image 加载本地沙箱文件只支持 file:// 协议（file:///data/storage/...），
-   * 裸绝对路径（DB 里存的格式）加载失败。https/data:/file:// 原样返回。
-   */
+  private async handlePullRefresh(): Promise<void> {
+    try {
+      const familyId = this.db.getCurrentFamilyId();
+      if (familyId && CloudService.getInstance().isCloudAvailable()) {
+        await CloudService.getInstance().syncAll(familyId, true);
+      }
+    } finally {
+      this.isRefreshing = false;
+      this.photos = this.db.getPhotos();
+      this.familyMembers = this.familyVm.getFamilyMembers();
+    }
+  }
+
+  private openFullscreenZoom(): void {
+    this.zoomScale = 1;
+    this.showFullscreenZoom = true;
+  }
+
   private toImageSrc(path: string): string {
     if (!path) return '';
     if (path.startsWith('http') || path.startsWith('file://') || path.startsWith('data:')) {
@@ -139,7 +165,6 @@ struct AlbumPage {
       const sandboxDir = context.filesDir;
       const fileName = `photo_${Date.now()}.jpg`;
       const destPath = `${sandboxDir}/${fileName}`;
-      // copyFileSync 不接受媒体库 URI（file://media/...），必须先 openSync 拿 fd 再复制
       const srcFile = fileIo.openSync(sourceUri, fileIo.OpenMode.READ_ONLY);
       try {
         fileIo.copyFileSync(srcFile.fd, destPath);
@@ -152,87 +177,144 @@ struct AlbumPage {
     }
   }
 
+  onBackPress(): boolean {
+    if (this.showFullscreenZoom) {
+      this.showFullscreenZoom = false;
+      return true;
+    }
+    if (this.showPhotoViewer) {
+      this.closeViewer();
+      return true;
+    }
+    return false;
+  }
+
   pageTransition(): void {
-    PageTransitionEnter({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Right)
-    PageTransitionExit({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Left)
-    PageTransitionEnter({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Left)
-    PageTransitionExit({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Right)
+    PageTransitionEnter({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).slide(SlideEffect.Right)
+    PageTransitionExit({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).slide(SlideEffect.Left)
+    PageTransitionEnter({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).slide(SlideEffect.Left)
+    PageTransitionExit({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: Curve.EaseInOut }).slide(SlideEffect.Right)
   }
 
   build() {
     Stack() {
       Column() {
+      // —— 顶栏 ——
       Row() {
+        Image($r('app.media.icon_back'))
+          .width(24).height(24).fillColor(NEUTRAL_INK)
+          .onClick(() => { router.back(); })
+
         Row() {
-          Text('<')
-            .fontSize(22).fontWeight(FontWeight.Bold).fontColor(this.themePrimary)
-        }.width(34).height(34).borderRadius(17)
-        .backgroundColor(this.themeBorder)
+          Image(getModuleIconRes('album'))
+            .width(20).height(20).fillColor(NEUTRAL_INK)
+          Text('家庭相册')
+            .fontSize(this.titleFontSize)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(NEUTRAL_INK)
+            .fontFamily(FONT_FAMILY_SERIF)
+            .margin({ left: 8 })
+        }
+        .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
-        .onClick(() => { router.back(); })
-        Text('📷 家庭相册').fontSize(this.titleFontSize).fontWeight(FontWeight.Bold).layoutWeight(1).textAlign(TextAlign.Center)
-        Row() { Text('+').fontSize(20).fontColor(Color.White).fontWeight(FontWeight.Bold) }
-          .width(32).height(32).borderRadius(16)
-          .backgroundColor(this.themePrimary)
-          .justifyContent(FlexAlign.Center)
+
+        Text('+')
+          .fontSize(20).fontWeight(FontWeight.Bold).fontColor(NEUTRAL_INK)
           .onClick(() => {
             this.resetForm();
             this.showAddDialog = true;
           })
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 8 })
+      .padding({ left: SPACE_MD, right: SPACE_MD, top: 12, bottom: 8 })
 
-      // 筛选条
+      // —— 筛选条 ——
       Scroll() {
-        Row({ space: 8 }) {
-          Text('全部')
-            .fontSize(12)
-            .fontColor(this.selectedMemberFilter === '' ? Color.White : NEUTRAL_INK_SECONDARY)
-            .backgroundColor(this.selectedMemberFilter === '' ? this.themePrimary : BG_SUBTLE)
-            .borderRadius(12)
-            .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-            .onClick(() => { this.selectedMemberFilter = ''; })
+        Row({ space: 16 }) {
           ForEach(this.familyMembers, (member: FamilyMember) => {
             Text(member.avatar)
-              .fontSize(14)
-              .fontColor(this.selectedMemberFilter === member.id ? Color.White : NEUTRAL_INK_SECONDARY)
-              .backgroundColor(this.selectedMemberFilter === member.id ? member.color : BG_SUBTLE)
-              .borderRadius(12)
-              .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-              .onClick(() => { this.selectedMemberFilter = member.id; })
+              .fontSize(16)
+              .fontColor(this.selectedMemberFilter === member.id ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+              .fontWeight(this.selectedMemberFilter === member.id ? FontWeight.Bold : FontWeight.Normal)
+              .border({ width: { bottom: this.selectedMemberFilter === member.id ? 2 : 0 }, color: NEUTRAL_INK })
+              .padding({ left: 4, right: 4, bottom: 4 })
+              .onClick(() => {
+                this.selectedMemberFilter = this.selectedMemberFilter === member.id ? '' : member.id;
+              })
           }, (member: FamilyMember) => member.id + '_' + member.updatedAt)
 
-          // 视图切换：网格 / 按日期 / 按标签
-          Text('网格')
-            .fontSize(12)
-            .fontColor(this.currentViewMode === 0 ? Color.White : NEUTRAL_INK_SECONDARY)
-            .backgroundColor(this.currentViewMode === 0 ? this.themePrimary : BG_SUBTLE)
-            .borderRadius(12)
-            .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          Text('照片墙')
+            .fontSize(FONT_CAPTION)
+            .fontColor(this.currentViewMode === 0 ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+            .fontWeight(this.currentViewMode === 0 ? FontWeight.Bold : FontWeight.Normal)
+            .border({ width: { bottom: this.currentViewMode === 0 ? 2 : 0 }, color: NEUTRAL_INK })
+            .padding({ bottom: 4 })
             .onClick(() => { this.currentViewMode = 0; })
-          Text('按日期')
-            .fontSize(12)
-            .fontColor(this.currentViewMode === 1 ? Color.White : NEUTRAL_INK_SECONDARY)
-            .backgroundColor(this.currentViewMode === 1 ? this.themePrimary : BG_SUBTLE)
-            .borderRadius(12)
-            .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          Text('全部照片')
+            .fontSize(FONT_CAPTION)
+            .fontColor(this.currentViewMode === 3 ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+            .fontWeight(this.currentViewMode === 3 ? FontWeight.Bold : FontWeight.Normal)
+            .border({ width: { bottom: this.currentViewMode === 3 ? 2 : 0 }, color: NEUTRAL_INK })
+            .padding({ bottom: 4 })
+            .onClick(() => {
+              this.currentViewMode = 3;
+              this.selectedMemberFilter = '';
+            })
+          Text('时间线')
+            .fontSize(FONT_CAPTION)
+            .fontColor(this.currentViewMode === 1 ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+            .fontWeight(this.currentViewMode === 1 ? FontWeight.Bold : FontWeight.Normal)
+            .border({ width: { bottom: this.currentViewMode === 1 ? 2 : 0 }, color: NEUTRAL_INK })
+            .padding({ bottom: 4 })
             .onClick(() => { this.currentViewMode = 1; })
           Text('按标签')
-            .fontSize(12)
-            .fontColor(this.currentViewMode === 2 ? Color.White : NEUTRAL_INK_SECONDARY)
-            .backgroundColor(this.currentViewMode === 2 ? this.themePrimary : BG_SUBTLE)
-            .borderRadius(12)
-            .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+            .fontSize(FONT_CAPTION)
+            .fontColor(this.currentViewMode === 2 ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+            .fontWeight(this.currentViewMode === 2 ? FontWeight.Bold : FontWeight.Normal)
+            .border({ width: { bottom: this.currentViewMode === 2 ? 2 : 0 }, color: NEUTRAL_INK })
+            .padding({ bottom: 4 })
             .onClick(() => { this.currentViewMode = 2; })
         }
       }
       .scrollable(ScrollDirection.Horizontal)
+      .scrollBar(BarState.Off)
       .width('100%')
-      .padding({ left: 16, right: 16, bottom: 8 })
+      .padding({ left: SPACE_MD, right: SPACE_MD, bottom: 8 })
       .edgeEffect(EdgeEffect.Spring)
 
-      // 照片列表
+      // —— 展示密度切换 ——
+      if (this.currentViewMode === 1 || this.currentViewMode === 2) {
+        Row() {
+          Blank()
+          Row({ space: 16 }) {
+            Text('列表')
+              .fontSize(FONT_CAPTION)
+              .fontColor(!this.compactGroups ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+              .fontWeight(!this.compactGroups ? FontWeight.Bold : FontWeight.Normal)
+              .border({ width: { bottom: !this.compactGroups ? 2 : 0 }, color: NEUTRAL_INK })
+              .padding({ bottom: 4 })
+              .onClick(() => {
+                this.compactGroups = false;
+                this.db.saveSetting('album_compact_groups', false);
+              })
+            Text('宫格')
+              .fontSize(FONT_CAPTION)
+              .fontColor(this.compactGroups ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+              .fontWeight(this.compactGroups ? FontWeight.Bold : FontWeight.Normal)
+              .border({ width: { bottom: this.compactGroups ? 2 : 0 }, color: NEUTRAL_INK })
+              .padding({ bottom: 4 })
+              .onClick(() => {
+                this.compactGroups = true;
+                this.db.saveSetting('album_compact_groups', true);
+              })
+          }
+        }
+        .width('100%')
+        .padding({ left: SPACE_MD, right: SPACE_MD, bottom: 6 })
+      }
+
+      // —— 照片列表 ——
+      Refresh({ refreshing: $$this.isRefreshing }) {
       Scroll() {
         if (this.photos.length === 0) {
           EmptyState({
@@ -240,69 +322,56 @@ struct AlbumPage {
             title: '暂无照片',
             subtitle: '记录家庭的美好瞬间',
             actionText: '+ 上传照片',
-            buttonColor: this.themePrimary,
+            buttonColor: NEUTRAL_INK,
             onAction: () => { this.showAddDialog = true; }
           })
         } else if (this.currentViewMode === 0) {
-          // 网格视图
-          Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
-            ForEach(this.getFilteredPhotos(), (photo: Photo) => {
-              Column() {
-                Column() {
-                  if (photo.url || photo.thumbnailUrl) {
-                    Image(this.toImageSrc(photo.url || photo.thumbnailUrl))
-                      .width('100%').height(120)
-                      .objectFit(ImageFit.Cover)
-                      .borderRadius(8)
-                  } else {
-                    Text('🖼️').fontSize(32)
-                  }
-                }
-                .width('100%')
-                .height(120)
-                .justifyContent(FlexAlign.Center)
-                .backgroundColor(BG_SUBTLE)
-                .borderRadius(8)
-
-                if (photo.description) {
-                  Text(photo.description)
-                    .fontSize(15).fontColor(NEUTRAL_INK_SECONDARY)
-                    .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-                    .margin({ top: 4 })
-                }
-                Row() {
-                  if (photo.eventTag) {
-                    Text(`🏷 ${photo.eventTag}`).fontSize(12).fontColor(NEUTRAL_INK_SECONDARY)
-                  }
-                  Text(toLocalDateKey(photo.takenAt).slice(5)).fontSize(12).fontColor(NEUTRAL_INK_SECONDARY)
-                }.width('100%')
-                .justifyContent(FlexAlign.SpaceBetween)
-                .margin({ top: 2 })
+          if (this.getWallPhotos().length === 0) {
+            this.WallEmptyGuide()
+          } else {
+            Row({ space: 10 }) {
+              Column({ space: 10 }) {
+                ForEach(this.getWallColumn(0), (photo: Photo) => {
+                  this.PhotoWallTile(photo)
+                }, (photo: Photo) => `${photo.id}_${photo.updatedAt || ''}`)
               }
-              .width('48%')
-              .margin('1%')
+              .layoutWeight(1)
               .alignItems(HorizontalAlign.Start)
-              .onClick(() => { this.openViewer(photo); })
-              .gesture(LongPressGesture().onAction((event: GestureEvent) => {
-                this.downloadPhoto(photo);
-              }))
-            }, (photo: Photo) => `${photo.id}_${photo.updatedAt}`)
+
+              Column({ space: 10 }) {
+                ForEach(this.getWallColumn(1), (photo: Photo) => {
+                  this.PhotoWallTile(photo)
+                }, (photo: Photo) => `${photo.id}_${photo.updatedAt || ''}`)
+              }
+              .layoutWeight(1)
+              .alignItems(HorizontalAlign.Start)
+            }
+            .width('100%')
+            .padding(SPACE_MD)
+            .alignItems(VerticalAlign.Top)
           }
-          .padding(16)
+        } else if (this.currentViewMode === 3) {
+          this.AllPhotosGrid()
         } else {
-          // 分组视图：按日期 / 按标签
           Column({ space: 12 }) {
             ForEach(this.getGroupsForMode(), (group: PhotoGroup) => {
               Column({ space: 8 }) {
-                Text(group.label).fontSize(16).fontWeight(FontWeight.Bold).fontColor(NEUTRAL_INK).width('100%')
-                ForEach(group.photos, (photo: Photo) => {
+                Text(group.label)
+                  .fontSize(FONT_BODY)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor(NEUTRAL_INK)
+                  .fontFamily(FONT_FAMILY_SERIF)
+                  .width('100%')
+                if (this.compactGroups) {
+                  this.GroupThumbGrid(group.photos)
+                } else {
+                  ForEach(group.photos, (photo: Photo) => {
                   Row() {
                     Column() {
                       if (photo.url || photo.thumbnailUrl) {
                         Image(this.toImageSrc(photo.url || photo.thumbnailUrl))
                           .width(60).height(60)
                           .objectFit(ImageFit.Cover)
-                          .borderRadius(8)
                       } else {
                         Text('🖼️').fontSize(24)
                       }
@@ -310,35 +379,51 @@ struct AlbumPage {
                     .width(60).height(60)
                     .justifyContent(FlexAlign.Center)
                     .backgroundColor(BG_SUBTLE)
-                    .borderRadius(8)
                     .margin({ right: 10 })
 
                     Column() {
-                      Text(photo.description || '无描述').fontSize(17).fontColor(NEUTRAL_INK)
+                      Text(photo.description || '无描述')
+                        .fontSize(this.fontSize)
+                        .fontColor(NEUTRAL_INK)
                         .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
                       Row() {
-                        // 按标签分组时头部已显示标签，行内不再重复
                         if (this.currentViewMode === 1 && photo.eventTag) {
-                          Text(`🏷 ${photo.eventTag}`).fontSize(13).fontColor(NEUTRAL_INK_SECONDARY).margin({ right: 8 })
+                          Text(`🏷 ${photo.eventTag}`)
+                            .fontSize(FONT_CAPTION)
+                            .fontColor(NEUTRAL_INK_SECONDARY)
+                            .margin({ right: 8 })
                         }
-                        Text(formatIsoToLocal(photo.takenAt).slice(11)).fontSize(13).fontColor(NEUTRAL_INK_SECONDARY)
+                        Text(formatIsoToLocal(photo.takenAt).slice(11))
+                          .fontSize(FONT_CAPTION)
+                          .fontColor(NEUTRAL_INK_SECONDARY)
                       }.margin({ top: 2 })
                     }
                     .alignItems(HorizontalAlign.Start)
                     .layoutWeight(1)
+
+                    if (this.isFamilyOwner) {
+                      Column() {
+                        Image(photo.isOnWall === true ? $r('app.media.icon_star') : $r('app.media.icon_star_outline'))
+                          .width(20).height(20)
+                          .fillColor(photo.isOnWall === true ? BRAND_RED_LG : NEUTRAL_INK_SECONDARY)
+                      }
+                      .width(36).height(60)
+                      .justifyContent(FlexAlign.Center)
+                      .onClick(() => { this.toggleWall(photo); })
+                    }
                   }
                   .width('100%')
-                  .padding(14)
-                  .borderRadius(8)
-                  .backgroundColor(Color.White)
+                  .padding({ top: 12, bottom: 12 })
+                  .border({ width: { bottom: 0.5 }, color: DIVIDER })
                   .onClick(() => { this.openViewer(photo); })
-                }, (photo: Photo) => `${photo.id}_${photo.updatedAt}`)
+                  }, (photo: Photo) => `${photo.id}_${photo.updatedAt}`)
+                }
               }
               .width('100%')
               .alignItems(HorizontalAlign.Start)
-            }, (group: PhotoGroup) => group.label)
+            }, (group: PhotoGroup) => this.groupKey(group))
           }
-          .padding(16)
+          .padding(SPACE_MD)
           .width('100%')
           .alignItems(HorizontalAlign.Start)
         }
@@ -348,14 +433,21 @@ struct AlbumPage {
       .align(Alignment.TopStart)
     }
     .width('100%')
+    .layoutWeight(1)
+    .onRefreshing(() => { this.handlePullRefresh().catch(() => {}); })
+    }
+    .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Start)
     .alignItems(HorizontalAlign.Start)
-    .backgroundColor(this.themeLightBg)
+    .backgroundColor(BG_PAPER)
     .bindContentCover(this.showAddDialog, this.AddPhotoDialog())
 
     if (this.showPhotoViewer) {
       this.PhotoViewerOverlay()
+    }
+    if (this.showFullscreenZoom) {
+      this.PhotoZoomOverlay()
     }
     if (this.showEditDialog) {
       this.EditPhotoDialog()
@@ -366,20 +458,17 @@ struct AlbumPage {
   }
 
   // ==================== 全屏照片查看器 ====================
-  // 点击小图 → 全屏查看上传原图；底部操作按钮：编辑 / 删除（仅上传者可见）
   @Builder
   PhotoViewerOverlay() {
     if (this.showPhotoViewer && this.viewerPhoto) {
       Column() {
-        // 顶部栏：上传者 + 关闭
         Row() {
           Text(this.getMemberLabel(this.viewerPhoto!.creatorId))
-            .fontSize(13).fontColor(Color.White).layoutWeight(1)
+            .fontSize(FONT_CAPTION).fontColor(Color.White).layoutWeight(1)
           Text('✕')
             .fontSize(18).fontColor(Color.White)
             .width(34).height(34)
             .textAlign(TextAlign.Center)
-            .borderRadius(17)
             .backgroundColor('#33FFFFFF')
             .onClick(() => { this.closeViewer(); })
         }
@@ -387,63 +476,88 @@ struct AlbumPage {
         .padding({ left: 20, right: 12, top: 12, bottom: 8 })
         .alignItems(VerticalAlign.Center)
 
-        // 原图大图（等比缩放完整显示上传的原图）
         Image(this.toImageSrc(this.viewerPhoto!.url || this.viewerPhoto!.thumbnailUrl))
           .width('100%')
           .layoutWeight(1)
           .objectFit(ImageFit.Contain)
+          .bindContextMenu(this.SavePhotoMenu, ResponseType.LongPress)
+          .onClick(() => { this.openFullscreenZoom(); })
 
-        // 底部信息：描述 + 标签 + 时间 + 操作按钮
         Column() {
           if (this.viewerPhoto!.description) {
             Text(this.viewerPhoto!.description)
-              .fontSize(15).fontColor(Color.White)
+              .fontSize(FONT_BODY).fontColor(Color.White)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
               .width('100%')
           }
           Row({ space: 12 }) {
             if (this.viewerPhoto!.eventTag) {
-              Text(`🏷 ${this.viewerPhoto!.eventTag}`).fontSize(13).fontColor('#CCFFFFFF')
+              Text(`🏷 ${this.viewerPhoto!.eventTag}`).fontSize(FONT_CAPTION).fontColor('#CCFFFFFF')
             }
-            Text(formatIsoToLocal(this.viewerPhoto!.takenAt)).fontSize(13).fontColor('#CCFFFFFF')
+            Text(formatIsoToLocal(this.viewerPhoto!.takenAt)).fontSize(FONT_CAPTION).fontColor('#CCFFFFFF')
+            Blank()
+            Text('点击图片全屏查看').fontSize(FONT_CAPTION_SM).fontColor('#99FFFFFF')
           }
           .width('100%')
-          .margin({ top: 6 })
+          .margin({ top: 4 })
 
-          // 点赞 + 保存到相册
-          Row({ space: 12 }) {
-            Row() {
-              Text(this.viewerLikedByMe ? '❤️' : '🤍').fontSize(18)
+          Row({ space: 8 }) {
+            if (this.isFamilyOwner) {
+              Row({ space: 5 }) {
+                Image(this.viewerPhoto!.isOnWall === true ? $r('app.media.icon_star') : $r('app.media.icon_star_outline'))
+                  .width(18).height(18)
+                  .fillColor(this.viewerPhoto!.isOnWall === true ? BRAND_RED_LG : Color.White)
+                Text(this.viewerPhoto!.isOnWall === true ? '已上墙' : '上墙')
+                  .fontSize(FONT_CAPTION).fontColor(Color.White)
+              }
+              .padding({ left: 12, right: 14, top: 8, bottom: 8 })
+              .backgroundColor(this.viewerPhoto!.isOnWall === true ? 'rgba(200,74,50,0.2)' : 'rgba(255,255,255,0.15)')
+              .onClick(() => { this.toggleWall(this.viewerPhoto!); })
+            }
+            Row({ space: 6 }) {
+              Image(this.viewerLikedByMe ? $r('app.media.icon_heart') : $r('app.media.icon_heart_outline'))
+                .width(20).height(20)
+                .fillColor(this.viewerLikedByMe ? BRAND_RED_LG : Color.White)
               if (this.viewerLikes.length > 0) {
-                Text(`${this.viewerLikes.length}`).fontSize(14).fontColor(Color.White).margin({ left: 4 })
+                Text(`${this.viewerLikes.length}`).fontSize(FONT_BODY).fontColor(Color.White)
               }
             }
-            .padding({ left: 16, right: 16, top: 8, bottom: 8 })
-            .borderRadius(18)
-            .backgroundColor(this.viewerLikedByMe ? '#33FF6B6B' : '#26FFFFFF')
+            .padding({ left: 12, right: 14, top: 8, bottom: 8 })
+            .backgroundColor(this.viewerLikedByMe ? 'rgba(200,74,50,0.2)' : 'rgba(255,255,255,0.15)')
             .onClick(() => { this.toggleLike(); })
 
-            Button('💾 保存到相册')
-              .fontSize(14).fontColor(Color.White)
-              .backgroundColor('#26FFFFFF')
-              .borderRadius(18).height(36).layoutWeight(1)
-              .onClick(() => { this.downloadPhoto(this.viewerPhoto!); })
+            TextInput({ placeholder: '写评论...', text: this.commentInput })
+              .fontSize(FONT_BODY).fontColor(Color.White)
+              .backgroundColor('rgba(255,255,255,0.15)')
+              .height(36).layoutWeight(1)
+              .placeholderColor('#66FFFFFF')
+              .onChange((v: string) => { this.commentInput = v; })
+              .onClick(() => {})
+            Button(this.isSendingComment ? '发送中' : '发送')
+              .fontSize(FONT_BODY).fontColor(Color.White)
+              .backgroundColor(BRAND_RED)
+              .height(36)
+              .enabled(!this.isSendingComment)
+              .onClick(() => { this.sendComment(); })
           }
           .width('100%')
-          .margin({ top: 12 })
+          .margin({ top: 8 })
 
-          // 评论列表（只能删自己的）
           if (this.viewerComments.length > 0) {
             Scroll() {
-              Column({ space: 8 }) {
+              Column({ space: 6 }) {
                 ForEach(this.viewerComments, (c: PhotoComment) => {
                   Row() {
-                    Text(this.getMemberLabel(c.creatorId)).fontSize(12).fontColor('#CCFFFFFF')
-                    Text(c.content).fontSize(14).fontColor(Color.White)
+                    Text(this.getMemberLabel(c.creatorId)).fontSize(FONT_CAPTION).fontColor('#CCFFFFFF')
+                    Text(c.content).fontSize(FONT_BODY).fontColor(Color.White)
                       .layoutWeight(1)
                       .margin({ left: 8, right: 8 })
-                    Text(this.relativeTime(c.createdAt)).fontSize(11).fontColor('#66FFFFFF')
+                      .maxLines(1)
+                      .textOverflow({ overflow: TextOverflow.Ellipsis })
+                    Text(this.relativeTime(c.createdAt)).fontSize(FONT_CAPTION_SM).fontColor('#66FFFFFF')
                     if (this.db.isRecordCreator(c.creatorId)) {
-                      Text('删除').fontSize(12).fontColor('#FF9C94')
+                      Text('删除').fontSize(FONT_CAPTION).fontColor(SEMANTIC_ERROR)
                         .margin({ left: 6 })
                         .onClick(() => { this.deleteComment(c.id); })
                     }
@@ -456,59 +570,340 @@ struct AlbumPage {
               .alignItems(HorizontalAlign.Start)
             }
             .width('100%')
-            .constraintSize({ maxHeight: 140 })
-            .margin({ top: 12 })
+            .constraintSize({ maxHeight: 84 })
+            .margin({ top: 8 })
             .scrollBar(BarState.Off)
           }
 
-          // 评论输入
-          Row({ space: 8 }) {
-            TextInput({ placeholder: '写评论...', text: this.commentInput })
-              .fontSize(14).fontColor(Color.White)
-              .backgroundColor('#26FFFFFF')
-              .borderRadius(18).height(36).layoutWeight(1)
-              .placeholderColor('#66FFFFFF')
-              .onChange((v: string) => { this.commentInput = v; })
-              .onClick(() => {}) // 消费点击，避免冒泡到外层关闭查看器
-            Button(this.isSendingComment ? '发送中' : '发送')
-              .fontSize(14).fontColor(Color.White)
-              .backgroundColor(this.themePrimary)
-              .borderRadius(18).height(36)
-              .enabled(!this.isSendingComment)
-              .onClick(() => { this.sendComment(); })
-          }
-          .width('100%')
-          .margin({ top: 10 })
-
           if (this.isCreator(this.viewerPhoto!.creatorId)) {
-            // 编辑 / 删除为两个独立按钮，间距拉开避免误触
             Row({ space: 16 }) {
-              Button('✏️ 编辑')
-                .fontSize(15).fontColor(Color.White)
-                .backgroundColor('#26FFFFFF')
-                .borderRadius(22).height(44).layoutWeight(1)
+              Button('编辑')
+                .fontSize(FONT_BODY).fontColor(Color.White)
+                .backgroundColor('rgba(255,255,255,0.15)')
+                .height(44).layoutWeight(1)
                 .onClick(() => { this.openEditDialog(this.viewerPhoto); })
-              Button('🗑 删除')
-                .fontSize(15).fontColor('#FF9C94')
-                .backgroundColor('#26FF6B6B')
-                .borderRadius(22).height(44).layoutWeight(1)
+              Button('删除')
+                .fontSize(FONT_BODY).fontColor(SEMANTIC_ERROR)
+                .backgroundColor('rgba(184,64,42,0.15)')
+                .height(44).layoutWeight(1)
                 .onClick(() => { this.showDeleteConfirm(this.viewerPhoto); })
             }
             .width('100%')
-            .margin({ top: 16 })
+            .margin({ top: 12 })
           } else {
             Text('只有上传者可编辑或删除这张照片')
-              .fontSize(11).fontColor('#66FFFFFF').margin({ top: 12 })
+              .fontSize(FONT_CAPTION_SM).fontColor('#66FFFFFF').margin({ top: 8 })
           }
         }
         .width('100%')
-        .padding({ left: 20, right: 20, top: 8, bottom: 24 })
+        .padding({ left: 20, right: 20, top: 6, bottom: 16 })
         .alignItems(HorizontalAlign.Start)
+        .linearGradient({
+          angle: 180,
+          colors: [['#00000000', 0], ['#CC000000', 1]]
+        })
       }
       .width('100%')
       .height('100%')
       .backgroundColor('#000000')
       .onClick(() => { this.closeViewer(); })
+    }
+  }
+
+  // ==================== 全屏图片缩放查看器 ====================
+  @Builder
+  PhotoZoomOverlay() {
+    Stack() {
+      if (this.showFullscreenZoom && this.viewerPhoto) {
+        Image(this.toImageSrc(this.viewerPhoto!.url || this.viewerPhoto!.thumbnailUrl))
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Contain)
+          .scale({ x: this.zoomScale, y: this.zoomScale })
+          .gesture(
+            PinchGesture({ fingers: 2 })
+              .onActionStart(() => {})
+              .onActionUpdate((event: GestureEvent) => {
+                let s = event.scale;
+                if (s < 1) s = 1;
+                if (s > 4) s = 4;
+                this.zoomScale = s;
+              })
+              .onActionEnd(() => {
+                if (this.zoomScale < 1.3) {
+                  this.zoomScale = 1;
+                }
+              })
+          )
+          .onClick(() => { this.showFullscreenZoom = false; })
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('#000000')
+  }
+
+  // ==================== 长按图片 → 保存菜单 ====================
+  @Builder
+  SavePhotoMenu() {
+    Menu() {
+      MenuItem({ content: '保存到相册' })
+        .onClick(() => { this.downloadPhoto(this.viewerPhoto!); })
+    }
+  }
+
+  // ==================== 照片墙 ====================
+  @Builder
+  PhotoWallTile(photo: Photo) {
+    Stack() {
+      Column() {
+        if (photo.url || photo.thumbnailUrl) {
+          Image(this.toImageSrc(photo.url || photo.thumbnailUrl))
+            .width('100%').height('100%')
+            .objectFit(ImageFit.Cover)
+        } else {
+          Text('🖼️').fontSize(32).fontColor(NEUTRAL_INK_SECONDARY)
+        }
+      }
+      .width('100%').height('100%')
+      .justifyContent(FlexAlign.Center)
+      .backgroundColor(BG_SUBTLE)
+
+      Row() {
+        if (photo.description || photo.takenAt) {
+          Text(photo.description || toLocalDateKey(photo.takenAt).slice(5))
+            .fontSize(FONT_CAPTION).fontColor(Color.White)
+            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+            .backgroundColor('#59000000')
+            .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            .margin({ left: 6, bottom: 6 })
+            .constraintSize({ maxWidth: '92%' })
+        }
+      }
+      .width('100%').height('100%')
+      .alignItems(VerticalAlign.Bottom)
+      .justifyContent(FlexAlign.Start)
+
+      if (this.isFamilyOwner) {
+        Row() {
+          Column() {
+            Image(photo.isOnWall === true ? $r('app.media.icon_star') : $r('app.media.icon_star_outline'))
+              .width(15).height(15)
+              .fillColor(photo.isOnWall === true ? BRAND_RED_LG : Color.White)
+          }
+          .width(28).height(28)
+          .backgroundColor('#66000000')
+          .justifyContent(FlexAlign.Center)
+          .margin({ top: 6, right: 6 })
+          .onClick(() => { this.toggleWall(photo); })
+        }
+        .width('100%').height('100%')
+        .alignItems(VerticalAlign.Top)
+        .justifyContent(FlexAlign.End)
+      }
+    }
+    .width('100%')
+    .aspectRatio(this.wallRatio(photo))
+    .clip(true)
+    .backgroundColor(BG_SUBTLE)
+    .onClick(() => { this.openViewer(photo); })
+    .gesture(LongPressGesture().onAction((event: GestureEvent) => {
+      this.downloadPhoto(photo);
+    }))
+  }
+
+  @Builder
+  WallStarCorner(photo: Photo) {
+    Row() {
+      Column() {
+        Image(photo.isOnWall === true ? $r('app.media.icon_star') : $r('app.media.icon_star_outline'))
+          .width(15).height(15)
+          .fillColor(photo.isOnWall === true ? BRAND_RED_LG : Color.White)
+      }
+      .width(26).height(26)
+      .backgroundColor('#66000000')
+      .justifyContent(FlexAlign.Center)
+      .onClick(() => { this.toggleWall(photo); })
+    }
+    .width('100%').height('100%')
+    .alignItems(VerticalAlign.Top)
+    .justifyContent(FlexAlign.End)
+    .padding({ top: 6, right: 6 })
+  }
+
+  // ==================== 全部照片网格 ====================
+  @Builder
+  AllPhotosGrid() {
+    Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+      ForEach(this.getFilteredPhotos(), (photo: Photo) => {
+        Column() {
+          Stack() {
+            Column() {
+              if (photo.url || photo.thumbnailUrl) {
+                Image(this.toImageSrc(photo.url || photo.thumbnailUrl))
+                  .width('100%').height('100%')
+                  .objectFit(ImageFit.Cover)
+              } else {
+                Text('🖼️').fontSize(32)
+              }
+            }
+            .width('100%').height('100%')
+            .justifyContent(FlexAlign.Center)
+            .backgroundColor(BG_SUBTLE)
+
+            if (this.isFamilyOwner) {
+              this.WallStarCorner(photo)
+            }
+          }
+          .width('100%').height(120)
+          .clip(true)
+
+          if (photo.description) {
+            Text(photo.description)
+              .fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY)
+              .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+              .margin({ top: 4 })
+          }
+          Row() {
+            if (photo.eventTag) {
+              Text(`🏷 ${photo.eventTag}`).fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY)
+            }
+            Text(toLocalDateKey(photo.takenAt).slice(5)).fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY)
+          }.width('100%')
+          .justifyContent(FlexAlign.SpaceBetween)
+          .margin({ top: 2 })
+        }
+        .width('48%')
+        .margin('1%')
+        .alignItems(HorizontalAlign.Start)
+        .onClick(() => { this.openViewer(photo); })
+        .gesture(LongPressGesture().onAction((event: GestureEvent) => {
+          this.downloadPhoto(photo);
+        }))
+      }, (photo: Photo) => `${photo.id}_${photo.updatedAt || ''}`)
+    }
+    .padding(SPACE_MD)
+  }
+
+  @Builder
+  WallEmptyGuide() {
+    Column() {
+      Text('⭐').fontSize(44)
+      Text('照片墙还空着')
+        .fontSize(FONT_TITLE)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(NEUTRAL_INK)
+        .fontFamily(FONT_FAMILY_SERIF)
+        .margin({ top: 14 })
+      Text(this.isFamilyOwner
+        ? '点照片上的 ☆ 星标（全部照片 / 时间线 / 按标签里都行），把最爱的瞬间放上墙'
+        : '等家庭主人挑选照片，把美好瞬间放上墙吧')
+        .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY)
+        .textAlign(TextAlign.Center)
+        .width('72%')
+        .margin({ top: 8 })
+      if (this.isFamilyOwner) {
+        Text('去挑照片')
+          .fontSize(FONT_BODY)
+          .fontColor(Color.White)
+          .padding({ left: 26, right: 26, top: 12, bottom: 12 })
+          .backgroundColor(NEUTRAL_INK)
+          .margin({ top: 18 })
+          .onClick(() => { this.currentViewMode = 1; })
+      }
+    }
+    .width('100%')
+    .padding({ top: 110, left: 24, right: 24 })
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  private getWallPhotos(): Photo[] {
+    const list = this.getFilteredPhotos().filter((p: Photo) => p.isOnWall === true);
+    return list.sort((a: Photo, b: Photo) => {
+      const ta = a.updatedAt || '';
+      const tb = b.updatedAt || '';
+      return tb.localeCompare(ta);
+    });
+  }
+
+  private getWallColumn(colIndex: number): Photo[] {
+    const wall = this.getWallPhotos();
+    const col: Photo[] = [];
+    for (let i = colIndex; i < wall.length; i += 2) {
+      col.push(wall[i]);
+    }
+    return col;
+  }
+
+  private wallRatio(photo: Photo): number {
+    const w = photo.width || 0;
+    const h = photo.height || 0;
+    if (w > 0 && h > 0) {
+      const r = w / h;
+      if (r < 0.55) return 0.55;
+      if (r > 1.8) return 1.8;
+      return r;
+    }
+    const variants: number[] = [0.8, 1.0, 1.25, 1.0];
+    let hash = 0;
+    const id = photo.id || '';
+    for (let i = 0; i < id.length; i++) {
+      hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+    }
+    return variants[hash % variants.length];
+  }
+
+  private async toggleWall(photo: Photo): Promise<void> {
+    if (!this.isFamilyOwner) {
+      promptAction.showToast({ message: '仅家庭主人可布置照片墙' });
+      return;
+    }
+    if (this.wallBusy === photo.id) return;
+    this.wallBusy = photo.id;
+    try {
+      const now = new Date().toISOString();
+      const updated: Photo = {
+        id: photo.id,
+        familyId: photo.familyId,
+        creatorId: photo.creatorId,
+        visibility: photo.visibility,
+        visibleMembers: photo.visibleMembers,
+        version: (photo.version || 0) + 1,
+        createdAt: photo.createdAt,
+        updatedAt: now,
+        url: photo.url,
+        thumbnailUrl: photo.thumbnailUrl,
+        description: photo.description,
+        eventTag: photo.eventTag,
+        takenAt: photo.takenAt,
+        isOnWall: photo.isOnWall !== true,
+        width: photo.width || 0,
+        height: photo.height || 0
+      };
+      await this.db.updatePhoto(updated);
+      this.photos = this.db.getPhotos();
+      if (this.viewerPhoto && this.viewerPhoto.id === photo.id) {
+        this.viewerPhoto = this.photos.find((p: Photo) => p.id === photo.id) ?? updated;
+      }
+    } finally {
+      this.wallBusy = '';
+    }
+  }
+
+  private async readImageSize(localPath: string): Promise<ImageSize> {
+    let file: fileIo.File | undefined = undefined;
+    try {
+      file = fileIo.openSync(localPath, fileIo.OpenMode.READ_ONLY);
+      const source = image.createImageSource(file.fd);
+      const info = await source.getImageInfo();
+      source.release();
+      fileIo.closeSync(file);
+      return { width: info.size.width, height: info.size.height };
+    } catch (_) {
+      if (file) {
+        try { fileIo.closeSync(file); } catch (_) {}
+      }
+      return { width: 0, height: 0 };
     }
   }
 
@@ -533,7 +928,6 @@ struct AlbumPage {
     this.viewerLikedByMe = this.viewerLikes.some(c => this.db.isRecordCreator(c.creatorId));
   }
 
-  /** 点赞/取消点赞：新建或墓碑删除自己的点赞记录，本地立即反馈，异步推云 */
   private async toggleLike(): Promise<void> {
     if (this.isTogglingLike) return;
     const photo = this.viewerPhoto;
@@ -567,7 +961,6 @@ struct AlbumPage {
         await this.db.savePhotoComment(comment);
       }
     } catch (err) {
-      // 本地保存失败：回滚 UI，避免展示与存储不一致
       this.viewerLikedByMe = wasLiked;
       this.viewerLikes = prevLikes;
     } finally {
@@ -609,7 +1002,6 @@ struct AlbumPage {
     await this.db.deletePhotoComment(id);
   }
 
-  /** 相对时间显示 */
   private relativeTime(iso: string): string {
     if (!iso) return '';
     const t = new Date(iso).getTime();
@@ -631,7 +1023,6 @@ struct AlbumPage {
     return fileUri.getUriFromPath(path);
   }
 
-  /** 长按/按钮下载照片：云端先下载到沙箱，本地直接用；走系统弹窗免权限保存到相册 */
   private async downloadPhoto(photo: Photo): Promise<void> {
     try {
       let localPath = photo.url || '';
@@ -662,7 +1053,6 @@ struct AlbumPage {
     }
   }
 
-  /** 根据 creatorId 找到成员显示名（兼容 memberId / userId 两种格式） */
   private getMemberLabel(creatorId: string): string {
     if (!creatorId) return '家庭成员';
     const member = this.familyMembers.find(m => m.id === creatorId);
@@ -672,7 +1062,6 @@ struct AlbumPage {
     return '家庭成员';
   }
 
-  /** 打开简易编辑框：只改名称/备注和标签，不换照片 */
   private openEditDialog(photo: Photo | null): void {
     if (!photo) return;
     this.editDesc = photo.description;
@@ -680,7 +1069,6 @@ struct AlbumPage {
     this.showEditDialog = true;
   }
 
-  /** 删除确认（仅创建者可见入口，二次确认防误删） */
   private showDeleteConfirm(photo: Photo | null): void {
     if (!photo) return;
     AlertDialog.show({
@@ -697,9 +1085,8 @@ struct AlbumPage {
     });
   }
 
-  /** 保存简易编辑：仅更新描述 + 标签，照片文件不变 */
   private async savePhotoEdit(): Promise<void> {
-    if (this.isSavingEdit) return; // 防双击
+    if (this.isSavingEdit) return;
     const photo = this.viewerPhoto;
     if (!photo) return;
     this.isSavingEdit = true;
@@ -717,11 +1104,13 @@ struct AlbumPage {
         thumbnailUrl: photo.thumbnailUrl,
         description: this.editDesc,
         eventTag: this.editTag,
-        takenAt: photo.takenAt
+        takenAt: photo.takenAt,
+        isOnWall: photo.isOnWall === true,
+        width: photo.width || 0,
+        height: photo.height || 0
       };
       await this.db.updatePhoto(updated);
       this.photos = this.db.getPhotos();
-      // 查看器保持打开，刷新为最新数据
       this.viewerPhoto = this.photos.find(p => p.id === photo.id) ?? null;
       this.showEditDialog = false;
     } finally {
@@ -735,44 +1124,47 @@ struct AlbumPage {
       Column() {
       Column() {
         Text('上传照片')
-          .fontSize(18).fontWeight(FontWeight.Bold).fontColor(NEUTRAL_INK).margin({ bottom: 16 })
+          .fontSize(FONT_TITLE)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(NEUTRAL_INK)
+          .fontFamily(FONT_FAMILY_SERIF)
+          .margin({ bottom: 16 })
 
-        // 照片选择
         Column() {
           if (this.selectedPhotoUri) {
             Image(this.toImageSrc(this.selectedPhotoUri))
               .width('100%').height(150)
               .objectFit(ImageFit.Cover)
-              .borderRadius(12)
           } else {
             Text('📷').fontSize(40)
-            Text('点击选择照片').fontSize(14).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 8 })
-            Text('从相册中选择或拍摄照片').fontSize(11).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 4 })
+            Text('点击选择照片')
+              .fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 8 })
+            Text('从相册中选择或拍摄照片')
+              .fontSize(FONT_CAPTION_SM).fontColor(NEUTRAL_INK_TERTIARY).margin({ top: 4 })
           }
         }
         .width('100%')
         .height(150)
         .justifyContent(FlexAlign.Center)
-        .borderRadius(12)
         .backgroundColor(BG_SUBTLE)
-        .border({ width: 1, color: BORDER_SUBTLE, style: BorderStyle.Dashed })
+        .border({ width: 1, color: DIVIDER, style: BorderStyle.Dashed })
         .margin({ bottom: 12 })
         .onClick(() => { this.pickPhoto(); })
 
         TextInput({ placeholder: '照片描述（可选）', text: this.newDescription })
-          .width('100%').padding(14).borderRadius(8).margin({ bottom: 8 })
+          .width('100%').padding(14).borderRadius(0).backgroundColor(BG_SUBTLE).margin({ bottom: 8 })
           .onChange((v: string) => { this.newDescription = v; })
 
-        // 事件标签选择
-        Text('事件标签').fontSize(13).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 4 })
+        Text('事件标签')
+          .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 4 })
         Flex({ wrap: FlexWrap.Wrap }) {
           ForEach(this.tagOptions, (item: TagOption) => {
             Text(item.label)
-              .fontSize(12)
-              .fontColor(this.newEventTag === item.tag ? Color.White : NEUTRAL_INK_SECONDARY)
-              .backgroundColor(this.newEventTag === item.tag ? this.themePrimary : BG_SUBTLE)
-              .borderRadius(12)
-              .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+              .fontSize(FONT_CAPTION)
+              .fontColor(this.newEventTag === item.tag ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+              .fontWeight(this.newEventTag === item.tag ? FontWeight.Bold : FontWeight.Normal)
+              .border({ width: { bottom: this.newEventTag === item.tag ? 2 : 0 }, color: NEUTRAL_INK })
+              .padding({ bottom: 4 })
               .margin(3)
               .onClick(() => { this.newEventTag = item.tag; })
           }, (item: TagOption) => item.tag || 'none')
@@ -782,23 +1174,27 @@ struct AlbumPage {
 
         Row({ space: 12 }) {
           Button('取消')
-            .fontSize(14).fontColor(NEUTRAL_INK_SECONDARY).backgroundColor(BORDER_SUBTLE)
-            .borderRadius(20).layoutWeight(1)
+            .fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY)
+            .backgroundColor(Color.Transparent)
+            .border({ width: 1, color: DIVIDER })
+            .borderRadius(0).layoutWeight(1)
             .onClick(() => {
               this.showAddDialog = false;
               this.resetForm();
             })
           Button(this.isSavingPhoto ? '保存中...' : '保存')
-            .fontSize(14).fontColor(Color.White).backgroundColor(this.themePrimary)
-            .borderRadius(20).layoutWeight(1)
+            .fontSize(FONT_BODY).fontColor(Color.White)
+            .backgroundColor(NEUTRAL_INK)
+            .borderRadius(0).layoutWeight(1)
             .enabled(!this.isSavingPhoto)
             .onClick(async () => {
-              if (this.isSavingPhoto) return; // 防双击：上传期间忽略重复点击
+              if (this.isSavingPhoto) return;
               this.isSavingPhoto = true;
               try {
                 const now = new Date().toISOString();
                 const family = this.db.getCurrentFamily();
                 const vis = this.db.resolveModuleVisibilityForRecord(ModuleId.ALBUM);
+                const size = await this.readImageSize(this.selectedPhotoUri);
                 const photo: Photo = {
                   id: generateId('ph'),
                   familyId: family?.id ?? '',
@@ -812,15 +1208,16 @@ struct AlbumPage {
                   thumbnailUrl: this.selectedPhotoUri,
                   description: this.newDescription,
                   eventTag: this.newEventTag,
-                  takenAt: now
+                  takenAt: now,
+                  isOnWall: false,
+                  width: size.width,
+                  height: size.height
                 };
-                // 先上传 Cloud Storage 再保存：url 改为云端下载 URL，其他成员才能看到照片；
-                // 上传失败（离线等）保留本地路径，由 syncPendingPhotoUploads 后续补传
                 if (photo.url && !photo.url.startsWith('http')) {
                   const downloadUrl = await CloudService.getInstance()
                     .uploadPhoto(photo.url, photo.familyId, photo.id);
                   if (downloadUrl) {
-                    photo.url = downloadUrl; // thumbnailUrl 保留本地路径作本机缓存
+                    photo.url = downloadUrl;
                   }
                 }
                 await this.db.savePhoto(photo);
@@ -835,48 +1232,51 @@ struct AlbumPage {
       }
       .width('90%')
       .padding(20)
-      .borderRadius(16)
-      .backgroundColor(Color.White)
-      .shadow({ radius: 20, color: '#33000000', offsetX: 0, offsetY: 10 })
+      .backgroundColor(BG_CARD)
       .onClick(() => {})
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#66000000')
+      .backgroundColor('rgba(0,0,0,0.5)')
       .justifyContent(FlexAlign.Center)
     }
   }
 
-  /** 简易编辑框：仅改名称/备注 + 标签，不复用上传对话框 */
   @Builder
   EditPhotoDialog() {
     if (this.showEditDialog) {
       Column() {
         Column() {
           Text('编辑照片')
-            .fontSize(18).fontWeight(FontWeight.Bold).fontColor(NEUTRAL_INK).margin({ bottom: 4 })
+            .fontSize(FONT_TITLE)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(NEUTRAL_INK)
+            .fontFamily(FONT_FAMILY_SERIF)
+            .margin({ bottom: 4 })
           Text('修改名称备注和标签，照片本身不变')
-            .fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 14 })
+            .fontSize(FONT_CAPTION_SM).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 14 })
 
-          Text('名称 / 备注').fontSize(13).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 6 })
+          Text('名称 / 备注')
+            .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 6 })
           TextInput({ placeholder: '给照片起个名字或备注（可选）', text: this.editDesc })
             .width('100%')
             .height(44)
             .padding({ left: 12, right: 12 })
-            .borderRadius(10)
+            .borderRadius(0)
             .backgroundColor(BG_SUBTLE)
             .margin({ bottom: 14 })
             .onChange((v: string) => { this.editDesc = v; })
 
-          Text('标签').fontSize(13).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 6 })
+          Text('标签')
+            .fontSize(FONT_CAPTION).fontColor(NEUTRAL_INK_SECONDARY).width('100%').margin({ bottom: 6 })
           Flex({ wrap: FlexWrap.Wrap }) {
             ForEach(this.tagOptions, (item: TagOption) => {
               Text(item.label)
-                .fontSize(12)
-                .fontColor(this.editTag === item.tag ? Color.White : NEUTRAL_INK_SECONDARY)
-                .backgroundColor(this.editTag === item.tag ? this.themePrimary : BG_SUBTLE)
-                .borderRadius(12)
-                .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+                .fontSize(FONT_CAPTION)
+                .fontColor(this.editTag === item.tag ? NEUTRAL_INK : NEUTRAL_INK_TERTIARY)
+                .fontWeight(this.editTag === item.tag ? FontWeight.Bold : FontWeight.Normal)
+                .border({ width: { bottom: this.editTag === item.tag ? 2 : 0 }, color: NEUTRAL_INK })
+                .padding({ bottom: 4 })
                 .margin(3)
                 .onClick(() => { this.editTag = item.tag; })
             }, (item: TagOption) => item.tag || 'none')
@@ -886,38 +1286,38 @@ struct AlbumPage {
 
           Row({ space: 12 }) {
             Button('取消')
-              .fontSize(14).fontColor(NEUTRAL_INK_SECONDARY).backgroundColor(BORDER_SUBTLE)
-              .borderRadius(20).layoutWeight(1)
+              .fontSize(FONT_BODY).fontColor(NEUTRAL_INK_SECONDARY)
+              .backgroundColor(Color.Transparent)
+              .border({ width: 1, color: DIVIDER })
+              .borderRadius(0).layoutWeight(1)
               .onClick(() => { this.showEditDialog = false; })
             Button(this.isSavingEdit ? '保存中...' : '保存')
-              .fontSize(14).fontColor(Color.White).backgroundColor(this.themePrimary)
-              .borderRadius(20).layoutWeight(1)
+              .fontSize(FONT_BODY).fontColor(Color.White)
+              .backgroundColor(NEUTRAL_INK)
+              .borderRadius(0).layoutWeight(1)
               .enabled(!this.isSavingEdit)
               .onClick(() => { this.savePhotoEdit(); })
           }
         }
         .width('85%')
         .padding(20)
-        .borderRadius(16)
-        .backgroundColor(Color.White)
-        .shadow({ radius: 20, color: '#33000000', offsetX: 0, offsetY: 10 })
+        .backgroundColor(BG_CARD)
         .onClick(() => {})
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#66000000')
+      .backgroundColor('rgba(0,0,0,0.5)')
       .justifyContent(FlexAlign.Center)
     }
   }
 
   private getFilteredPhotos(): Photo[] {
     if (!this.selectedMemberFilter) return this.photos;
-    // creatorId 新格式存 memberId，旧格式存 userId（openID），需同时匹配
     const member = this.familyMembers.find(m => m.id === this.selectedMemberFilter);
     const targetUserId = member ? member.userId : '';
     return this.photos.filter(p =>
-      p.creatorId === this.selectedMemberFilter || // 新格式：memberId
-      (targetUserId && p.creatorId === targetUserId) // 旧格式：userId
+      p.creatorId === this.selectedMemberFilter ||
+      (targetUserId && p.creatorId === targetUserId)
     );
   }
 
@@ -947,14 +1347,12 @@ struct AlbumPage {
     return groups;
   }
 
-  /** 按事件标签分组（未打标签或标签非预设的归入「未分类」），已定义标签在前、未分类最后 */
   private getTagGroups(): PhotoGroup[] {
     const filtered = this.getFilteredPhotos();
     const groups: PhotoGroup[] = [];
     const groupedIds = new Set<string>();
     for (const opt of this.tagOptions) {
       if (!opt.tag) continue;
-      // 兼容旧数据：eventTag 可能存的是带 emoji 的 label（如 '☀️ 日常'），两种都归入本组
       const list = filtered.filter(p => p.eventTag === opt.tag || p.eventTag === opt.label);
       if (list.length > 0) {
         groups.push({
@@ -967,16 +1365,83 @@ struct AlbumPage {
     const uncategorized = filtered.filter(p => !groupedIds.has(p.id));
     if (uncategorized.length > 0) {
       groups.push({
-        label: '📷 未分类',
+        label: '未分类',
         photos: uncategorized.sort((a, b) => b.takenAt.localeCompare(a.takenAt))
       });
     }
     return groups;
   }
 
-  /** 当前分组视图的数据源：按日期 / 按标签 */
   private getGroupsForMode(): PhotoGroup[] {
     return this.currentViewMode === 2 ? this.getTagGroups() : this.getGroupedPhotos();
+  }
+
+  // ==================== 小图宫格 ====================
+  @Builder
+  GroupThumbGrid(photos: Photo[]) {
+    Column({ space: 6 }) {
+      ForEach(this.chunkPhotos(photos), (row: Photo[]) => {
+        Row({ space: 6 }) {
+          ForEach(row, (photo: Photo) => {
+            Stack() {
+              Column() {
+                if (photo.url || photo.thumbnailUrl) {
+                  Image(this.toImageSrc(photo.url || photo.thumbnailUrl))
+                    .width('100%').height('100%')
+                    .objectFit(ImageFit.Cover)
+                } else {
+                  Text('🖼️').fontSize(16).fontColor(NEUTRAL_INK_SECONDARY)
+                }
+              }
+              .width('100%').height('100%')
+              .justifyContent(FlexAlign.Center)
+              .backgroundColor(BG_SUBTLE)
+
+              if (this.isFamilyOwner) {
+                this.WallStarCorner(photo)
+              }
+            }
+            .layoutWeight(1)
+            .aspectRatio(1)
+            .clip(true)
+            .onClick(() => { this.openViewer(photo); })
+          }, (photo: Photo) => `${photo.id}_${photo.updatedAt || ''}`)
+          if (row.length < 4) {
+            ForEach(this.fillerCells(4 - row.length), (i: number) => {
+              Column().layoutWeight(1).aspectRatio(1)
+            }, (i: number) => 'f' + i)
+          }
+        }
+        .width('100%')
+      }, (row: Photo[]) => row[0].id + '_' + row.length)
+    }
+    .width('100%')
+  }
+
+  private groupKey(group: PhotoGroup): string {
+    let wallCount = 0;
+    for (const p of group.photos) {
+      if (p.isOnWall === true) {
+        wallCount++;
+      }
+    }
+    return `${group.label}_${group.photos.length}_${wallCount}`;
+  }
+
+  private chunkPhotos(photos: Photo[]): Photo[][] {
+    const rows: Photo[][] = [];
+    for (let i = 0; i < photos.length; i += 4) {
+      rows.push(photos.slice(i, i + 4));
+    }
+    return rows;
+  }
+
+  private fillerCells(count: number): number[] {
+    const cells: number[] = [];
+    for (let i = 0; i < count; i++) {
+      cells.push(i);
+    }
+    return cells;
   }
 
   private async deletePhotoWithFile(photo: Photo): Promise<void> {
@@ -986,11 +1451,9 @@ struct AlbumPage {
     for (const path of localPaths) {
       try { fileIo.unlinkSync(path); } catch (_) {}
     }
-    // 已上云的照片同步删除云端文件，避免残留占用云存储
     if (photo.url && photo.url.startsWith('http')) {
       await CloudService.getInstance().deleteFile(CloudService.photoCloudPath(photo.familyId, photo.id));
     }
-    // 级联删除该照片的点赞/评论记录
     const comments = this.db.getPhotoComments(photo.id);
     for (const c of comments) {
       await this.db.deletePhotoComment(c.id);

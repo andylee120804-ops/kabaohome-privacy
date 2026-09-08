@@ -80,6 +80,7 @@ export class AgcConfig {
   /**
    * 获取 Cloud DB 数据库区域实例
    * @returns DatabaseZone 实例，未初始化或 Cloud DB 不可用时返回 null
+   * @deprecated 项目通过云函数访问 Cloud DB，不直接使用客户端 SDK。保留备用。
    */
   getDbZone(): cloudDatabase.DatabaseZone | null {
     return this.dbZone;

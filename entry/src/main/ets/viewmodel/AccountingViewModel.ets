@@ -222,25 +222,26 @@ export class AccountingViewModel {
   }
 
   getCategoryColor(category: string): string {
+    // Direction C 冷静墨调：所有分类色在纸底 >=4.5:1
     const map: Record<string, string> = {
-      [AccountCategory.FOOD]: '#E65100',
-      [AccountCategory.TRANSPORT]: '#1565C0',
-      [AccountCategory.SHOPPING]: '#6A1B9A',
-      [AccountCategory.HOUSING]: '#2E7D32',
-      [AccountCategory.EDUCATION]: '#00838F',
-      [AccountCategory.MEDICAL]: '#C62828',
-      [AccountCategory.ENTERTAINMENT]: '#FF6D00',
-      [AccountCategory.DAILY]: '#5D4037',
-      [AccountCategory.BABY]: '#AD1457',
-      [AccountCategory.SALARY]: '#2E7D32',
-      [AccountCategory.BONUS]: '#1B5E20',
-      [AccountCategory.INVESTMENT]: '#0D47A1',
-      [AccountCategory.SIDE_JOB]: '#00695C',
-      [AccountCategory.GIFT]: '#C62828',
-      [AccountCategory.INCOME_OTHER]: '#757575',
-      [AccountCategory.OTHER]: '#757575'
+      [AccountCategory.FOOD]: '#876117',       // 深琥珀
+      [AccountCategory.TRANSPORT]: '#4E6884',  // 雾蓝
+      [AccountCategory.SHOPPING]: '#6A5A80',   // 雾紫
+      [AccountCategory.HOUSING]: '#3D6B5C',    // 墨绿
+      [AccountCategory.EDUCATION]: '#4E6884',  // 雾蓝
+      [AccountCategory.MEDICAL]: '#B8402A',    // 朱红
+      [AccountCategory.ENTERTAINMENT]: '#876117', // 深琥珀
+      [AccountCategory.DAILY]: '#5C5C5C',      // 二级灰
+      [AccountCategory.BABY]: '#6A5A80',       // 雾紫
+      [AccountCategory.SALARY]: '#3D6B5C',    // 墨绿
+      [AccountCategory.BONUS]: '#3D6B5C',     // 墨绿
+      [AccountCategory.INVESTMENT]: '#4E6884', // 雾蓝
+      [AccountCategory.SIDE_JOB]: '#3D6B5C',  // 墨绿
+      [AccountCategory.GIFT]: '#B8402A',      // 朱红
+      [AccountCategory.INCOME_OTHER]: '#5C5C5C', // 二级灰
+      [AccountCategory.OTHER]: '#5C5C5C'      // 二级灰
     };
-    return map[category] ?? '#757575';
+    return map[category] ?? '#5C5C5C';
   }
 
   getMemberName(memberId: string): string {

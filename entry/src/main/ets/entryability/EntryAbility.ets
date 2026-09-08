@@ -8,7 +8,7 @@
  * 4. 系统提醒刷新
  * 5. 页面路由
  */
-import { UIAbility, AbilityConstant, Want } from '@kit.AbilityKit';
+import { UIAbility, AbilityConstant, Want, ConfigurationConstant } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { notificationManager } from '@kit.NotificationKit';
@@ -19,6 +19,8 @@ import { HuaweiAccountProvider } from '../service/HuaweiAccountProvider';
 import { ReminderService } from '../service/ReminderService';
 import { AgcConfig } from '../service/AgcConfig';
 import { CloudService } from '../service/CloudService';
+import { PushService } from '../service/PushService';
+import { LocationReporter } from '../service/LocationReporter';
 
 const TAG = '[EntryAbility]';
 const DOMAIN = 0x0000;
@@ -26,6 +28,9 @@ const DOMAIN = 0x0000;
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     hilog.info(DOMAIN, TAG, 'onCreate');
+
+    // 0. 强制浅色模式（UI 设计为纸白浅色系，与 release 版一致；避免系统深色下样式错乱）
+    this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT);
 
     // 1. 先初始化 AGC 服务（Cloud DB/Auth/CloudStorage）
     const agc = AgcConfig.getInstance();
@@ -50,29 +55,42 @@ export default class EntryAbility extends UIAbility {
   onWindowStageCreate(windowStage: window.WindowStage): void {
     hilog.info(DOMAIN, TAG, 'onWindowStageCreate');
 
-    // 初始化本地数据库，再加载页面
+    // 先加载登录页（LoginPage 内部会根据登录状态自动跳转），不等 DB 初始化 —— 与 release 版一致
+    windowStage.loadContent('pages/LoginPage', (err) => {
+      if (err.code) {
+        hilog.error(DOMAIN, TAG, 'Failed to load LoginPage: %{public}s', JSON.stringify(err));
+        // 回退：尝试直接加载 FamilySetupPage
+        windowStage.loadContent('pages/FamilySetupPage', (err2) => {
+          if (err2.code) {
+            hilog.error(DOMAIN, TAG, 'Failed to load FamilySetupPage: %{public}s', JSON.stringify(err2));
+          }
+        });
+      }
+    });
+
+    // DB 初始化并行进行，成功后补通知授权与系统提醒
     const db = LocalDbService.getInstance();
     db.init(this.context).then(() => {
       hilog.info(DOMAIN, TAG, 'LocalDbService initialized');
       this.requestNotificationEnable();
       this.refreshSystemReminders();
-      this.initAuthAndRoute(windowStage);
     }).catch((err: Error) => {
       hilog.error(DOMAIN, TAG, 'LocalDbService init failed: %{public}s', err.message);
-      // 即使初始化失败也尝试加载页面
-      this.initAuthAndRoute(windowStage);
     });
   }
 
   onForeground(): void {
     hilog.info(DOMAIN, TAG, 'onForeground');
-    // 每次从后台返回时：刷新系统提醒 + 触发云端同步
+    // 每次从后台返回时：刷新系统提醒 + 触发云端同步 + 开始位置共享周期上报
     this.refreshSystemReminders();
     this.triggerCloudSync();
+    LocationReporter.getInstance().start();
   }
 
   onBackground(): void {
     hilog.info(DOMAIN, TAG, 'onBackground');
+    // 后台挂起：停止位置上报（家人看到「最后在线」）
+    LocationReporter.getInstance().stop();
   }
 
   onDestroy(): void {
@@ -120,28 +138,11 @@ export default class EntryAbility extends UIAbility {
       const db = LocalDbService.getInstance();
       if (!db.isInitialized()) return;
       // CloudService 会在后台处理 push/pull，不阻塞 UI
-      CloudService.getInstance().syncAll(db.getCurrentFamilyId());
+      CloudService.getInstance().syncAll(db.getCurrentFamilyId(), true);
+      PushService.getInstance().init();
     } catch (err) {
       // 同步失败不影响本地功能
       hilog.warn(DOMAIN, TAG, 'Cloud sync skipped: %{public}s', (err as Error).message);
     }
-  }
-
-  /**
-   * 加载登录页面，LoginPage 内部会根据状态自动跳转
-   */
-  private initAuthAndRoute(windowStage: window.WindowStage): void {
-    hilog.info(DOMAIN, TAG, 'Routing to LoginPage');
-    windowStage.loadContent('pages/LoginPage', (err) => {
-      if (err.code) {
-        hilog.error(DOMAIN, TAG, 'Failed to load LoginPage: %{public}s', JSON.stringify(err));
-        // 回退：尝试直接加载 FamilySetupPage
-        windowStage.loadContent('pages/FamilySetupPage', (err2) => {
-          if (err2.code) {
-            hilog.error(DOMAIN, TAG, 'Failed to load FamilySetupPage: %{public}s', JSON.stringify(err2));
-          }
-        });
-      }
-    });
   }
 }

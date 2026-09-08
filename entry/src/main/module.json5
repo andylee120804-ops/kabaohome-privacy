@@ -12,10 +12,10 @@
     "installationFree": false,
     "pages": "$profile:main_pages",
     "metadata": [
-      // AGC 项目级 Client ID（取自 agconnect-services.json 的 client.client_id）
+      // 应用级 OAuth 2.0 Client ID（取自 agconnect-services.json 的 oauth_client.client_id，用于华为账号登录）
       {
         "name": "client_id",
-        "value": "1957419444888157376"
+        "value": "6917607032903467630"
       }
     ],
     "abilities": [
@@ -34,7 +34,7 @@
               "entity.system.home"
             ],
             "actions": [
-              "action.system.home"
+              "ohos.want.action.home"
             ]
           }
         ]

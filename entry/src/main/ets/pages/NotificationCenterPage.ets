@@ -5,15 +5,21 @@
  * 不负责创建——创建走「家庭提醒」(ReminderPage) 或对应模块页面。
  */
 import { Reminder } from '../model/Reminder';
+import { BG_PAPER, BORDER_CORAL, BRAND_CORAL, ERROR_BG, INFO_BG, NEUTRAL_INK, NEUTRAL_INK_SECONDARY, SEMANTIC_ERROR, SEMANTIC_INFO, SEMANTIC_SUCCESS, SEMANTIC_WARNING, SUCCESS_BG, WARNING_BG } from '../common/DesignTokens';
 import { Medication, MedicationLog } from '../model/Medication';
 import { LocalDbService } from '../service/LocalDbService';
-import { FontSizeMode, THEME_PALETTES } from '../common/Constants';
+import { FontSizeMode, THEME_PALETTES , PAGE_TRANSITION_DURATION } from '../common/Constants';
 import { EmptyState } from '../components/EmptyState';
 import { FamilyMember } from '../model/FamilyMember';
 import { FamilyViewModel } from '../viewmodel/FamilyViewModel';
 import { HealthViewModel } from '../viewmodel/HealthViewModel';
 import { formatDate } from '../common/Utils';
 import router from '@ohos.router';
+import { curves } from '@kit.ArkUI';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+
+const TAG = '[NotificationCenterPage]';
+const DOMAIN = 0x0000;
 
 interface NotifyItem {
   id: string;
@@ -28,6 +34,7 @@ interface NotifyItem {
   routePage: string;
   rawData: Reminder | Medication | null;
   rawDataType: 'reminder' | 'medication' | '';
+  updatedAt?: string;
 }
 
 @Entry
@@ -46,9 +53,9 @@ struct NotificationCenterPage {
   @State isLargeFont: boolean = false;
   @State fontSize: number = 16;
   @State titleFontSize: number = 20;
-  @State themeLightBg: string = '#FFF5F0';
-  @State themePrimary: string = '#E8654A';
-  @State themeBorder: string = '#FFD4C2';
+  @State themeLightBg: string = BG_PAPER;
+  @State themePrimary: string = BRAND_CORAL;
+  @State themeBorder: string = BORDER_CORAL;
   @State activeFilter: string = 'all'; // all | overdue | today | medication | shopping
 
   private db: LocalDbService = LocalDbService.getInstance();
@@ -82,7 +89,6 @@ struct NotificationCenterPage {
   private buildNotifyItems(): void {
     const now = new Date();
     const todayStr = formatDate(now);
-    const nowIso = now.toISOString();
 
     const weekLater = new Date(now);
     weekLater.setDate(now.getDate() + 7);
@@ -105,7 +111,7 @@ struct NotificationCenterPage {
         completed.push({
           id: `rem_${r.id}`, icon: this.getTypeIcon(r.reminderType),
           title: r.title, subtitle: r.dueTime ? r.dueTime.slice(0, 16).replace('T', ' ') : '',
-          color: '#1565C0', isUrgent: false, isDone: true,
+          color: SEMANTIC_INFO, isUrgent: false, isDone: true,
           category: r.reminderType === 'medication' ? 'medication' : 'reminder',
           rawData: r, timeSlot: '', rawDataType: 'reminder', routePage: route
         });
@@ -115,11 +121,15 @@ struct NotificationCenterPage {
       const dateStr = r.dueTime.slice(0, 10);
       const timeStr = r.dueTime.length > 10 ? r.dueTime.slice(11, 16) : '';
 
+      // 周期自动提醒（经期前N天/排卵等）：未到期的未来日期不进「即将到来」，
+      // 到期当天/已过期才显示（未到期只走当天系统通知）
+      if (r.reminderType === 'period' && dateStr > todayStr) continue;
+
       if (r.reminderType === 'medication') {
         medications.push({
           id: `rem_${r.id}`, icon: '💊',
           title: r.title, subtitle: timeStr,
-          color: '#FF9800', isUrgent: r.dueTime < nowIso, isDone: false,
+          color: SEMANTIC_WARNING, isUrgent: new Date(r.dueTime).getTime() < now.getTime(), isDone: false,
           category: 'medication', rawData: r, timeSlot: timeStr,
           rawDataType: 'reminder', routePage: 'pages/HealthPage'
         });
@@ -129,7 +139,7 @@ struct NotificationCenterPage {
       const item: NotifyItem = {
         id: `rem_${r.id}`, icon: this.getTypeIcon(r.reminderType),
         title: r.title, subtitle: timeStr,
-        color: '#1565C0', isUrgent: r.dueTime < nowIso, isDone: false,
+        color: SEMANTIC_INFO, isUrgent: new Date(r.dueTime).getTime() < now.getTime(), isDone: false,
         category: 'reminder', rawData: r, timeSlot: '',
         rawDataType: 'reminder', routePage: route
       };
@@ -165,7 +175,7 @@ struct NotificationCenterPage {
           id: `med_${med.id}_${slot}`, icon: isTaken ? '✅' : (isMissed ? '⚠️' : '💊'),
           title: `${member?.name ?? '家人'} · ${med.medicineName}`,
           subtitle: `${med.dosage} · ${slot}`,
-          color: isTaken ? '#4CAF50' : (isMissed ? '#C62828' : '#FF9800'),
+          color: isTaken ? SEMANTIC_SUCCESS : (isMissed ? SEMANTIC_ERROR : SEMANTIC_WARNING),
           isUrgent: isMissed, isDone: isTaken, category: 'medication',
           rawData: med, timeSlot: slot, rawDataType: 'medication',
           routePage: 'pages/HealthPage'
@@ -180,7 +190,7 @@ struct NotificationCenterPage {
         completed.push({
           id: `shop_${r.id}`, icon: '🛒',
           title: r.title, subtitle: r.description || '',
-          color: '#2E7D32', isUrgent: false, isDone: true,
+          color: SEMANTIC_SUCCESS, isUrgent: false, isDone: true,
           category: 'shopping', rawData: r, timeSlot: '',
           rawDataType: 'reminder', routePage: 'pages/ReminderPage'
         });
@@ -188,7 +198,7 @@ struct NotificationCenterPage {
         shopping.push({
           id: `shop_${r.id}`, icon: '🛒',
           title: r.title, subtitle: r.description || '',
-          color: '#2E7D32', isUrgent: false, isDone: false,
+          color: SEMANTIC_SUCCESS, isUrgent: false, isDone: false,
           category: 'shopping', rawData: r, timeSlot: '',
           rawDataType: 'reminder', routePage: 'pages/ReminderPage'
         });
@@ -205,11 +215,18 @@ struct NotificationCenterPage {
   }
 
   private isCreator(creatorId: string): boolean {
-    return creatorId === this.db.getCurrentUserId();
+    return this.db.isRecordCreator(creatorId);
   }
 
   private refreshData(): void {
     this.loadData();
+  }
+
+  pageTransition(): void {
+    PageTransitionEnter({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Right)
+    PageTransitionExit({ type: RouteType.Push, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Left)
+    PageTransitionEnter({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Left)
+    PageTransitionExit({ type: RouteType.Pop, duration: PAGE_TRANSITION_DURATION, curve: curves.springMotion() }).slide(SlideEffect.Right)
   }
 
   build() {
@@ -225,7 +242,7 @@ struct NotificationCenterPage {
 
         Column() {
           Text('🔔 消息中心').fontSize(this.titleFontSize).fontWeight(FontWeight.Bold)
-          Text('未办事项一站触达').fontSize(11).fontColor('#999999').margin({ top: 2 })
+          Text('未办事项一站触达').fontSize(11).fontColor(NEUTRAL_INK_SECONDARY).margin({ top: 2 })
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Center)
@@ -243,10 +260,10 @@ struct NotificationCenterPage {
 
       // —— 统计 Chip：可点筛选 ——
       Row() {
-        this.StatChip('🔴', this.overdueItems.length, '已过期', '#FFEBEE', '#D32F2F', 'overdue')
-        this.StatChip('📅', this.todayItems.length, '今日', '#E3F2FD', '#1565C0', 'today')
-        this.StatChip('💊', this.untakenMedCount, '用药', '#FFF8E1', '#FF9800', 'medication')
-        this.StatChip('🛒', this.shoppingNotifyItems.length, '购物', '#E8F5E9', '#2E7D32', 'shopping')
+        this.StatChip('🔴', this.overdueItems.length, '已过期', ERROR_BG, SEMANTIC_ERROR, 'overdue')
+        this.StatChip('📅', this.todayItems.length, '今日', INFO_BG, SEMANTIC_INFO, 'today')
+        this.StatChip('💊', this.untakenMedCount, '用药', WARNING_BG, SEMANTIC_WARNING, 'medication')
+        this.StatChip('🛒', this.shoppingNotifyItems.length, '购物', SUCCESS_BG, SEMANTIC_SUCCESS, 'shopping')
       }
       .width('100%')
       .padding({ left: 12, right: 12, top: 4, bottom: 6 })
@@ -258,7 +275,7 @@ struct NotificationCenterPage {
           Text(`筛选：${this.getFilterLabel(this.activeFilter)}`)
             .fontSize(12).fontColor(this.themePrimary)
           Text(' · 全部')
-            .fontSize(12).fontColor('#999999')
+            .fontSize(12).fontColor(NEUTRAL_INK_SECONDARY)
             .onClick(() => { this.activeFilter = 'all'; })
         }
         .width('100%')
@@ -268,7 +285,7 @@ struct NotificationCenterPage {
       // —— 聚合列表 ——
       Scroll() {
         Column({ space: 0 }) {
-          if (this.totalActiveCount === 0 && this.completedItems.length === 0) {
+          if (this.totalActiveCount() === 0 && this.completedItems.length === 0) {
             EmptyState({
               icon: '🎉',
               title: '一切都已处理',
@@ -279,45 +296,45 @@ struct NotificationCenterPage {
             })
           } else {
             if ((this.activeFilter === 'all' || this.activeFilter === 'overdue') && this.overdueItems.length > 0) {
-              this.SectionHeader('🔴 已过期', this.overdueItems.length, '#D32F2F')
+              this.SectionHeader('🔴 已过期', this.overdueItems.length, SEMANTIC_ERROR)
               ForEach(this.overdueItems, (item: NotifyItem) => {
                 this.NotifyCard(item)
-              }, (item: NotifyItem) => item.id)
+              }, (item: NotifyItem) => item.id + '_' + (item.updatedAt ?? ''))
             }
 
             if ((this.activeFilter === 'all' || this.activeFilter === 'today') && this.todayItems.length > 0) {
-              this.SectionHeader('📅 今日', this.todayItems.length, '#1565C0')
+              this.SectionHeader('📅 今日', this.todayItems.length, SEMANTIC_INFO)
               ForEach(this.todayItems, (item: NotifyItem) => {
                 this.NotifyCard(item)
-              }, (item: NotifyItem) => item.id)
+              }, (item: NotifyItem) => item.id + '_' + (item.updatedAt ?? ''))
             }
 
             if (this.activeFilter === 'all' && this.upcomingItems.length > 0) {
-              this.SectionHeader('🔜 近7日', this.upcomingItems.length, '#546E7A')
+              this.SectionHeader('🔜 近7日', this.upcomingItems.length, SEMANTIC_INFO)
               ForEach(this.upcomingItems, (item: NotifyItem) => {
                 this.NotifyCard(item)
-              }, (item: NotifyItem) => item.id)
+              }, (item: NotifyItem) => item.id + '_' + (item.updatedAt ?? ''))
             }
 
             if ((this.activeFilter === 'all' || this.activeFilter === 'medication') && this.medicationItems.length > 0) {
-              this.SectionHeader('💊 今日用药', this.untakenMedCount, '#FF9800')
+              this.SectionHeader('💊 今日用药', this.untakenMedCount, SEMANTIC_WARNING)
               ForEach(this.medicationItems, (item: NotifyItem) => {
                 this.NotifyCard(item)
-              }, (item: NotifyItem) => item.id)
+              }, (item: NotifyItem) => item.id + '_' + (item.updatedAt ?? ''))
             }
 
             if ((this.activeFilter === 'all' || this.activeFilter === 'shopping') && this.shoppingNotifyItems.length > 0) {
-              this.SectionHeader('🛒 待买', this.shoppingNotifyItems.length, '#2E7D32')
+              this.SectionHeader('🛒 待买', this.shoppingNotifyItems.length, SEMANTIC_SUCCESS)
               ForEach(this.shoppingNotifyItems, (item: NotifyItem) => {
                 this.NotifyCard(item)
-              }, (item: NotifyItem) => item.id)
+              }, (item: NotifyItem) => item.id + '_' + (item.updatedAt ?? ''))
             }
 
             if (this.activeFilter === 'all' && this.completedItems.length > 0) {
               Row() {
-                Text('✅ 已完成').fontSize(16).fontWeight(FontWeight.Medium).fontColor('#999999')
-                Text(`${this.completedItems.length}项`).fontSize(14).fontColor('#BBBBBB').margin({ left: 6 })
-                Text(this.showCompleted ? '▲' : '▼').fontSize(12).fontColor('#BBBBBB').margin({ left: 4 })
+                Text('✅ 已完成').fontSize(16).fontWeight(FontWeight.Medium).fontColor(NEUTRAL_INK_SECONDARY)
+                Text(`${this.completedItems.length}项`).fontSize(14).fontColor(NEUTRAL_INK_SECONDARY).margin({ left: 6 })
+                Text(this.showCompleted ? '▲' : '▼').fontSize(12).fontColor(NEUTRAL_INK_SECONDARY).margin({ left: 4 })
               }
               .width('100%')
               .padding({ left: 16, right: 16, top: 12, bottom: 4 })
@@ -326,7 +343,7 @@ struct NotificationCenterPage {
               if (this.showCompleted) {
                 ForEach(this.completedItems, (item: NotifyItem) => {
                   this.NotifyCard(item)
-                }, (item: NotifyItem) => item.id)
+                }, (item: NotifyItem) => item.id + '_' + (item.updatedAt ?? ''))
               }
             }
           }
@@ -336,6 +353,7 @@ struct NotificationCenterPage {
         .alignItems(HorizontalAlign.Start)
       }
       .layoutWeight(1)
+      .edgeEffect(EdgeEffect.Spring)
       .align(Alignment.TopStart)
     }
     .width('100%')
@@ -368,7 +386,7 @@ struct NotificationCenterPage {
   @Builder
   SectionHeader(title: string, count: number, color: string) {
     Row() {
-      Text(title).fontSize(17).fontWeight(FontWeight.Bold).fontColor('#333333')
+      Text(title).fontSize(17).fontWeight(FontWeight.Bold).fontColor(NEUTRAL_INK)
       if (count > 0) {
         Text(`${count}`)
           .fontSize(12).fontColor(Color.White).fontWeight(FontWeight.Bold)
@@ -390,12 +408,12 @@ struct NotificationCenterPage {
       Column() {
         Text(item.title)
           .fontSize(16).fontWeight(FontWeight.Medium)
-          .fontColor(item.isDone ? '#999999' : '#333333')
+          .fontColor(item.isDone ? NEUTRAL_INK_SECONDARY : NEUTRAL_INK)
           .decoration({ type: item.isDone ? TextDecorationType.LineThrough : TextDecorationType.None })
           .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         if (item.subtitle) {
           Text(item.subtitle)
-            .fontSize(14).fontColor(item.isUrgent && !item.isDone ? '#D32F2F' : '#888888')
+            .fontSize(14).fontColor(item.isUrgent && !item.isDone ? SEMANTIC_ERROR : NEUTRAL_INK_SECONDARY)
             .margin({ top: 3 })
             .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         }
@@ -406,7 +424,7 @@ struct NotificationCenterPage {
       // 右侧操作
       if (item.isDone) {
         Text('撤销')
-          .fontSize(13).fontColor('#FF9800').backgroundColor('#FFF8E1')
+          .fontSize(13).fontColor(SEMANTIC_WARNING).backgroundColor(WARNING_BG)
           .borderRadius(8).padding({ left: 10, right: 10, top: 4, bottom: 4 })
           .onClick(() => { this.handleMarkUndone(item); })
       } else {
@@ -414,7 +432,7 @@ struct NotificationCenterPage {
           Text('✓').fontSize(16).fontColor(Color.White).fontWeight(FontWeight.Bold)
         }
         .width(32).height(32).borderRadius(16)
-        .backgroundColor(item.isUrgent ? '#D32F2F' : this.themePrimary)
+        .backgroundColor(item.isUrgent ? SEMANTIC_ERROR : this.themePrimary)
         .justifyContent(FlexAlign.Center)
         .onClick(() => { this.handleMarkDone(item); })
       }
@@ -422,7 +440,7 @@ struct NotificationCenterPage {
     .width('100%')
     .padding({ left: 16, right: 16, top: 14, bottom: 14 })
     .borderRadius(12)
-    .backgroundColor(item.isUrgent && !item.isDone ? '#FFF5F5' : Color.White)
+    .backgroundColor(item.isUrgent && !item.isDone ? ERROR_BG : Color.White)
     .shadow({ radius: 2, color: '#0A000000', offsetX: 0, offsetY: 1 })
     .opacity(item.isDone ? 0.6 : 1)
     .margin({ left: 12, right: 12, top: 4, bottom: 4 })
@@ -450,7 +468,7 @@ struct NotificationCenterPage {
         dueTime: r.dueTime, isRecurring: r.isRecurring, recurrenceRule: r.recurrenceRule,
         isCompleted: true, completedAt: now, reminderSettings: r.reminderSettings
       };
-      this.db.updateReminder(updated).then(() => { this.refreshData(); });
+      this.db.updateReminder(updated).then(() => this.refreshData()).catch((err: Error) => { hilog.warn(DOMAIN, TAG, 'updateReminder failed: %{public}s', err.message); });
     } else if (item.category === 'medication') {
       if (item.rawDataType === 'reminder') {
         const r = item.rawData as Reminder;
@@ -463,11 +481,11 @@ struct NotificationCenterPage {
           dueTime: r.dueTime, isRecurring: r.isRecurring, recurrenceRule: r.recurrenceRule,
           isCompleted: true, completedAt: now, reminderSettings: r.reminderSettings
         };
-        this.db.updateReminder(updated).then(() => { this.refreshData(); });
+        this.db.updateReminder(updated).then(() => this.refreshData()).catch((err: Error) => { hilog.warn(DOMAIN, TAG, 'updateReminder failed: %{public}s', err.message); });
       } else if (item.rawDataType === 'medication') {
         const med = item.rawData as Medication;
         const slot = item.timeSlot || (med.timeSlots.length > 0 ? med.timeSlots[0] : '08:00');
-        this.healthVm.confirmTaken(med.id, slot).then(() => { this.refreshData(); });
+        this.healthVm.confirmTaken(med.id, slot).then(() => this.refreshData()).catch((err: Error) => { hilog.warn(DOMAIN, TAG, 'confirmTaken failed: %{public}s', err.message); });
       }
     }
   }
@@ -485,11 +503,11 @@ struct NotificationCenterPage {
         dueTime: r.dueTime, isRecurring: r.isRecurring, recurrenceRule: r.recurrenceRule,
         isCompleted: false, completedAt: '', reminderSettings: r.reminderSettings
       };
-      this.db.updateReminder(updated).then(() => { this.refreshData(); });
+      this.db.updateReminder(updated).then(() => this.refreshData()).catch((err: Error) => { hilog.warn(DOMAIN, TAG, 'updateReminder failed: %{public}s', err.message); });
     } else if (item.category === 'medication' && item.rawDataType === 'medication') {
       const med = item.rawData as Medication;
       const slot = item.timeSlot || (med.timeSlots.length > 0 ? med.timeSlots[0] : '08:00');
-      this.db.deleteTodayMedicationLog(med.id, slot).then(() => { this.refreshData(); });
+      this.db.deleteTodayMedicationLog(med.id, slot).then(() => this.refreshData()).catch((err: Error) => { hilog.warn(DOMAIN, TAG, 'deleteTodayMedicationLog failed: %{public}s', err.message); });
     }
   }
 
@@ -510,7 +528,7 @@ struct NotificationCenterPage {
     return map[key] ?? key;
   }
 
-  private get totalActiveCount(): number {
+  private totalActiveCount(): number {
     return this.overdueItems.length + this.todayItems.length +
       this.upcomingItems.length + this.medicationItems.length + this.shoppingNotifyItems.length;
   }

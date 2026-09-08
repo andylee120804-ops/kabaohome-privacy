@@ -7,6 +7,15 @@
 
     { "name": "permission_location", "value": "用于家庭成员位置共享功能" },
     { "name": "permission_reminder", "value": "用于发送定时用药和家庭事项提醒" },
-    { "name": "permission_camera", "value": "用于扫描二维码加入家庭" }
+    { "name": "permission_camera", "value": "用于扫描二维码加入家庭" },
+
+    { "name": "privacy_policy_title", "value": "隐私政策" },
+    { "name": "privacy_policy_agree", "value": "同意" },
+    { "name": "privacy_policy_disagree", "value": "不同意" },
+    { "name": "privacy_policy_confirm", "value": "我已阅读并同意" },
+    {
+      "name": "privacy_policy_content",
+      "value": "欢迎使用卡宝Home。我们非常重视您的隐私和个人信息保护。\n\n1. 信息收集\n我们可能会收集以下类型的信息：\n- 您的基本资料（如昵称、头像）\n- 家庭成员信息（如姓名、年龄）\n- 健康数据（如生理周期、用药记录、健康指标）\n- 设备信息（如操作系统版本、设备型号）\n\n2. 信息使用\n我们收集的信息仅用于：\n- 提供和优化家庭健康管理服务\n- 数据同步与云端备份\n- 发送用药提醒和家庭事项通知\n\n3. 信息存储与安全\n您的数据存储在安全的服务器上，我们采用行业标准的安全措施保护您的个人信息。\n\n4. 信息共享\n我们不会将您的个人信息出售给第三方。仅在以下情况可能共享：\n- 获得您的明确同意\n- 法律要求\n- 保护用户权益\n\n5. 您的权利\n您可以随时查看、修改或删除您的个人信息。如果您有任何疑问，请联系我们。\n\n继续使用即表示您同意本隐私政策。"
+    }
   ]
 }

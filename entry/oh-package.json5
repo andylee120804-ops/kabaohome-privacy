@@ -6,6 +6,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@ohos/hypium": "1.0.25"
+  },
+  "devDependencies": {
+    // 注意：hypium >= 1.0.23 声明 compatibleSdkVersion 17，与本项目 5.0.0(12) 冲突（hvigor 00306004），勿升
+    "@ohos/hypium": "1.0.22"
   }
 }

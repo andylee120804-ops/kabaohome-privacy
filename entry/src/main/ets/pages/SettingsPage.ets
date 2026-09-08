@@ -1487,6 +1487,7 @@ struct SettingsPage {
         role: member.role, birthDate: member.birthDate, phone: member.phone,
         isCustodial: member.isCustodial, fontSizeMode: mode,
         claimToken: member.claimToken, status: member.status,
+        isDeleted: member.isDeleted,
         createdAt: member.createdAt, updatedAt: new Date().toISOString()
       };
       await this.db.updateMember(updated);
